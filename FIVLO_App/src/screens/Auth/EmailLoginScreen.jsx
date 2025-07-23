@@ -14,7 +14,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { login } from '../../services/authApi'; // authApi 임포트
 import AsyncStorage from '@react-native-async-storage/async-storage'; // AsyncStorage 임포트
 
-const EmailLoginScreen = () => {
+const EmailLoginScreen = ({ isPremiumUser }) => {
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
 
@@ -30,7 +30,8 @@ const EmailLoginScreen = () => {
     try {
       const response = await login(email, password); // 실제 백엔드 API 호출
       console.log('로그인 성공:', response);
-      // 로그인 성공 시, App.js의 초기화 로직이 다시 실행되어 isPremiumUser 상태를 업데이트하고 Main으로 이동합니다.
+      // 로그인 성공 시, userToken과 refreshToken은 authApi.js에서 AsyncStorage에 저장됩니다.
+      // App.js의 초기화 로직이 다시 실행되어 isPremiumUser 상태를 업데이트하고 Main으로 이동합니다.
       Alert.alert('성공', '로그인 되었습니다.');
       navigation.navigate('Main'); // 메인 화면으로 이동
     } catch (error) {
