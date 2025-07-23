@@ -1,0 +1,33 @@
+// src/services/timeAttackApi.js
+
+import apiClient from './apiClient';
+
+// 3-5. 타임어택 세션 생성 (POST /api/time-attack/sessions)
+export const createTimeAttackSession = async (title, totalDuration, steps) => {
+  const response = await apiClient.post('/time-attack/sessions', {
+    title,
+    totalDuration,
+    steps,
+  });
+  return response.data; // { id, title, ... } 형태를 예상
+};
+
+// 3-2. 타임어택 세션 시작/일시정지 (PUT /api/time-attack/sessions/SESSION_ID/start)
+// Postman 가이드에는 Pomodoro와 동일한 3-2로 되어 있으나, TimeAttack에 맞게 분리
+export const updateTimeAttackSessionStatus = async (sessionId, action) => { // action: "start" 또는 "pause"
+  const response = await apiClient.put(`/time-attack/sessions/${sessionId}/start`, { action });
+  return response.data; // { message, session } 형태를 예상
+};
+
+// 3-3. 타임어택 세션 완료 (PUT /api/time-attack/sessions/SESSION_ID/complete)
+// Postman 가이드에는 Pomodoro와 동일한 3-3로 되어 있으나, TimeAttack에 맞게 분리
+export const completeTimeAttackSession = async (sessionId) => {
+  const response = await apiClient.put(`/time-attack/sessions/${sessionId}/complete`);
+  return response.data; // { message, session } 형태를 예상
+};
+
+// Postman 가이드에 없지만, 타임어택 통계 조회 API도 필요할 수 있음
+// export const getTimeAttackStats = async () => {
+//   const response = await apiClient.get('/time-attack/stats');
+//   return response.data;
+// };

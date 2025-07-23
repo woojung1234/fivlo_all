@@ -1,0 +1,29 @@
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Expo
+.expo/
+web-build/ # Expo 웹 빌드 시 생성될 수 있는 폴더
+
+# 환경 변수 파일
+.env
+.env.local
+.env.*.local
+
+# 로그 파일
+logs/
+*.log
+
+# 운영체제 관련 파일
+.DS_Store
+Thumbs.db
+
+# 기타 임시 파일
+temp/
+*.tmp
+*.bak
+
+.git
