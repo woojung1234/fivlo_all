@@ -1,7 +1,7 @@
 // src/screens/Pomodoro/PomodoroBreakChoiceScreen.jsx
 
-import React, { useState } from 'react'; // useState 임포트 추가
-import { View, Text, StyleSheet, TouchableOpacity, Image, ScrollView, ActivityIndicator, Alert } from 'react-native'; // ActivityIndicator, Alert 임포트 추가
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Image, ScrollView, ActivityIndicator, Alert } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -14,15 +14,15 @@ import Button from '../../components/common/Button';
 import CharacterImage from '../../components/common/CharacterImage';
 
 // API 서비스 임포트
-import { updatePomodoroSessionStatus } from '../../services/pomodoroApi'; // API 임포트
+import { updatePomodoroSessionStatus } from '../../services/pomodoroApi';
 
-const PomodoroBreakChoiceScreen = ({ isPremiumUser }) => { // isPremiumUser prop 받기
+const PomodoroBreakChoiceScreen = ({ isPremiumUser }) => {
   const navigation = useNavigation();
   const route = useRoute();
   const insets = useSafeAreaInsets();
 
   const { selectedGoal } = route.params;
-  const [isLoading, setIsLoading] = useState(false); // 로딩 상태
+  const [isLoading, setIsLoading] = useState(false);
 
   // "네" (휴식 없이 바로 진행) - API 연동
   const handleNoBreak = async () => {

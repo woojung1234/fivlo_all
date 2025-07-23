@@ -29,7 +29,7 @@ const PomodoroGoalSelectionScreen = ({ isPremiumUser }) => {
   const fetchGoals = async () => {
     setIsLoading(true);
     try {
-      const data = await getPomodoroGoals(); // API 호출
+      const data = await getPomodoroGoals(); // API 호출 (이제 data는 배열)
       setGoals(data);
     } catch (error) {
       console.error("Failed to fetch pomodoro goals:", error.response ? error.response.data : error.message);

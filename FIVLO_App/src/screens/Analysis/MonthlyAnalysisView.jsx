@@ -1,7 +1,7 @@
 // src/screens/Analysis/MonthlyAnalysisView.jsx
 
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, ScrollView, TouchableOpacity, ActivityIndicator, Alert } from 'react-native'; // ActivityIndicator, Alert 임포트 추가
+import { View, Text, StyleSheet, FlatList, ScrollView, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
 import { Calendar, LocaleConfig } from 'react-native-calendars';
 import { format, startOfMonth, eachDayOfInterval, endOfMonth, isSameDay } from 'date-fns';
 import { ko } from 'date-fns/locale';
@@ -11,7 +11,7 @@ import { Colors } from '../../styles/color';
 import { FontSizes, FontWeights } from '../../styles/Fonts';
 
 // API 서비스 임포트
-import { getMonthlyAnalysis } from '../../services/analysisApi'; // API 임포트
+import { getMonthlyAnalysis } from '../../services/analysisApi';
 
 // 캘린더 한국어 설정 (TaskCalendarScreen과 동일)
 LocaleConfig.locales['ko'] = {
@@ -26,7 +26,7 @@ LocaleConfig.defaultLocale = 'ko';
 const MonthlyAnalysisView = ({ date, isPremiumUser }) => {
   const [monthlyData, setMonthlyData] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [selectedDayActivities, setSelectedDayActivities] = useState(null); // 막대 그래프 클릭 시 활동 표시
+  const [selectedDayActivities, setSelectedDayActivities] = useState(null);
 
   // 데이터 로드
   const fetchData = async (dateToFetch) => {
@@ -78,17 +78,17 @@ const MonthlyAnalysisView = ({ date, isPremiumUser }) => {
     daysInMonth.forEach(day => {
       const dayString = format(day, 'yyyy-MM-dd');
       const minutes = monthlyData.dailyConcentration[dayString]?.minutes || 0;
-      let backgroundColor = Colors.textLight; // 기본 흰색
-      let textColor = Colors.textDark; // 기본 텍스트 색상
+      let backgroundColor = Colors.textLight;
+      let textColor = Colors.textDark;
 
       if (minutes > 0) {
-        if (minutes < 60) { // 0 ~ 1시간: 밝은 갈색
+        if (minutes < 60) {
           backgroundColor = '#F5E6CC';
-          textColor = Colors.secondaryBrown; // 밝은 배경에 어두운 텍스트
-        } else if (minutes >= 60 && minutes < 120) { // 1 ~ 2시간: 중간 갈색
+          textColor = Colors.secondaryBrown;
+        } else if (minutes >= 60 && minutes < 120) {
           backgroundColor = '#D4B88C';
-          textColor = Colors.textLight; // 어두운 배경에 밝은 텍스트
-        } else { // 2시간 이상: 짙은 갈색
+          textColor = Colors.textLight;
+        } else {
           backgroundColor = '#A87C6F';
           textColor = Colors.textLight;
         }

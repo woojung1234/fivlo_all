@@ -1,7 +1,7 @@
 // src/screens/Pomodoro/PomodoroTimerScreen.jsx
 
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert, Modal, Animated, Easing, ScrollView, Image, ActivityIndicator } from 'react-native'; // ActivityIndicator 임포트 추가
+import { View, Text, StyleSheet, TouchableOpacity, Alert, Modal, Animated, Easing, ScrollView, Image, ActivityIndicator } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FontAwesome5 } from '@expo/vector-icons';
@@ -13,19 +13,19 @@ import { FontSizes, FontWeights } from '../../styles/Fonts';
 import CharacterImage from '../../components/common/CharacterImage';
 
 // API 서비스 임포트
-import { updatePomodoroSessionStatus, completePomodoroSession } from '../../services/pomodoroApi'; // API 임포트
+import { updatePomodoroSessionStatus, completePomodoroSession } from '../../services/pomodoroApi';
 
 const FOCUS_TIME = 25 * 60; // 25분 (초 단위)
 const BREAK_TIME = 5 * 60; // 5분 (초 단위)
 
-const PomodoroTimerScreen = ({ isPremiumUser }) => { // isPremiumUser prop 받기
+const PomodoroTimerScreen = ({ isPremiumUser }) => {
   const navigation = useNavigation();
   const route = useRoute();
   const insets = useSafeAreaInsets();
 
-  // selectedGoal에 id가 포함되어야 함 (PomodoroGoalCreationScreen에서 전달)
+  // selectedGoal에 id, title, color가 포함되어야 함
   const { selectedGoal, initialTimeLeft, initialIsFocusMode, initialCycleCount, resume } = route.params || { 
-    selectedGoal: { id: 'mock_id', text: '공부하기', color: '#FFD1DC' },
+    selectedGoal: { id: 'mock_id', title: '공부하기', color: '#FFD1DC' }, // 'goal' 대신 'title' 사용
     initialTimeLeft: FOCUS_TIME,
     initialIsFocusMode: true,
     initialCycleCount: 0,
@@ -33,17 +33,17 @@ const PomodoroTimerScreen = ({ isPremiumUser }) => { // isPremiumUser prop 받�
   };
 
   const [timeLeft, setTimeLeft] = useState(initialTimeLeft);
-  const [isRunning, setIsRunning] = useState(resume || false); // resume이 true면 바로 시작
+  const [isRunning, setIsRunning] = useState(resume || false);
   const [isFocusMode, setIsFocusMode] = useState(initialIsFocusMode);
   const [cycleCount, setCycleCount] = useState(initialCycleCount);
 
-  const [isLoading, setIsLoading] = useState(false); // 로딩 상태
+  const [isLoading, setIsLoading] = useState(false);
 
   const timerRef = useRef(null);
-  const needleAngle = useRef(new Animated.Value(0)).current; // 시계 바늘 각도
-  const obooniMovementAnim = useRef(new Animated.Value(0)).current; // 오분이 움직임 애니메이션
+  const needleAngle = useRef(new Animated.Value(0)).current;
+  const obooniMovementAnim = useRef(new Animated.Value(0)).current;
 
-  const totalPhaseTime = isFocusMode ? FOCUS_TIME : BREAK_TIME; // 현재 페이즈의 총 시간
+  const totalPhaseTime = isFocusMode ? FOCUS_TIME : BREAK_TIME;
 
   // 타이머 로직
   useEffect(() => {
@@ -120,26 +120,13 @@ const PomodoroTimerScreen = ({ isPremiumUser }) => { // isPremiumUser prop 받�
     }
   };
 
-  const handleReset = async () => {
+  const handleReset = () => {
     navigation.navigate('PomodoroResetConfirmModal', {
+      sessionId: selectedGoal.id, // 세션 ID 전달
       onConfirm: async () => {
-        setIsLoading(true);
-        try {
-          await completePomodoroSession(selectedGoal.id); // 완료 API 호출 (초기화는 완료로 처리)
-          console.log('포모도로 초기화 성공 (완료 처리)');
-          setIsRunning(false);
-          setTimeLeft(FOCUS_TIME);
-          setIsFocusMode(true);
-          setCycleCount(0);
-          needleAngle.setValue(0);
-          navigation.popToTop(); // 스택 맨 위로 이동
-          navigation.navigate('Pomodoro'); // 포모도로 첫 화면으로 이동
-        } catch (error) {
-          console.error('포모도로 초기화 실패:', error.response ? error.response.data : error.message);
-          Alert.alert('오류', error.response?.data?.message || '초기화 중 문제가 발생했습니다.');
-        } finally {
-          setIsLoading(false);
-        }
+        // PomodoroResetConfirmModal에서 이미 completeSession을 호출하므로, 여기서는 내비게이션만 처리
+        navigation.popToTop();
+        navigation.navigate('Pomodoro');
       },
       onCancel: () => {
         // 모달 닫기만 함
@@ -153,14 +140,14 @@ const PomodoroTimerScreen = ({ isPremiumUser }) => { // isPremiumUser prop 받�
       if (isFocusMode) {
         // 집중 시간 종료
         setIsRunning(false);
-        navigation.navigate('PomodoroBreakChoice', { selectedGoal, isPremiumUser }); // isPremiumUser 전달
+        navigation.navigate('PomodoroBreakChoice', { selectedGoal, isPremiumUser });
       } else {
         // 휴식 시간 종료 (1사이클 완료)
-        await completePomodoroSession(selectedGoal.id); // API 호출
-        console.log('1사이클 완료 성공');
+        const response = await completePomodoroSession(selectedGoal.id); // API 호출
+        console.log('1사이클 완료 성공:', response);
         setIsRunning(false);
         setCycleCount(prev => prev + 1);
-        navigation.navigate('PomodoroCycleComplete', { selectedGoal, cycleCount: cycleCount + 1, isPremiumUser }); // isPremiumUser 전달
+        navigation.navigate('PomodoroCycleComplete', { selectedGoal, cycleCount: cycleCount + 1, isPremiumUser, coinEarned: response.coinEarned }); // coinEarned 전달
       }
     } catch (error) {
       console.error('사이클 종료 처리 실패:', error.response ? error.response.data : error.message);
@@ -185,21 +172,36 @@ const PomodoroTimerScreen = ({ isPremiumUser }) => { // isPremiumUser prop 받�
     outputRange: ['0deg', '5deg', '0deg', '-5deg', '0deg'],
   });
 
+  const progressColor = (isFocusMode) => { // 집중 모드에 따라 색상 변화 (휴식 모드는 고정)
+    const progressPercentage = ( (totalPhaseTime - timeLeft) / totalPhaseTime ) * 100;
+    if (isFocusMode) {
+      return progressFill.interpolate({
+        inputRange: [0, 50, 100],
+        outputRange: [Colors.accentApricot, '#FF8C00', '#FF4500'], // 노랑 -> 주황 -> 빨강
+        extrapolate: 'clamp',
+      });
+    }
+    return Colors.secondaryBrown; // 휴식 모드는 고정색
+  };
+
+  const animatedBorderColor = progressColor(isFocusMode);
+
+
   return (
     <View style={[styles.screenContainer, { paddingTop: insets.top + 20 }]}>
       <Header title="포모도로 기능" showBackButton={true} />
 
-      {isLoading && ( // 로딩 스피너 오버레이
+      {isLoading && (
         <View style={styles.loadingOverlay}>
           <ActivityIndicator size="large" color={Colors.accentApricot} />
         </View>
       )}
 
       <View style={styles.contentContainer}>
-        <Text style={styles.goalText}>{selectedGoal.text}</Text>
+        <Text style={styles.goalText}>{selectedGoal.title}</Text> {/* 'goal' 대신 'title' 사용 */}
 
         {/* 오분이 시계 모양 타이머 (9번 이미지) */}
-        <View style={[styles.timerCircle, { borderColor: selectedGoal.color }]}>
+        <View style={[styles.timerCircle, { borderColor: animatedBorderColor }]}> {/* 동적 테두리 색상 */}
           <Image
             source={require('../../../assets/images/obooni_clock.png')}
             style={styles.obooniClock}
@@ -238,7 +240,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: Colors.primaryBeige,
   },
-  loadingOverlay: { // 로딩 스피너 오버레이
+  loadingOverlay: {
     position: 'absolute',
     top: 0,
     left: 0,

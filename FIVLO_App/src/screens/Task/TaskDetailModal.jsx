@@ -1,8 +1,8 @@
 // src/screens/Task/TaskDetailModal.jsx
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, Modal, TouchableOpacity, TextInput, Alert, FlatList, ActivityIndicator } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import { format } from 'date-fns';
 import { FontAwesome5 } from '@expo/vector-icons';
 
@@ -14,14 +14,19 @@ import Button from '../../components/common/Button';
 // TaskEditModal, TaskDeleteConfirmModal 임포트
 import TaskEditModal from './TaskEditModal';
 import TaskDeleteConfirmModal from './TaskDeleteConfirmModal';
-import TaskCompleteCoinModal from './TaskCompleteCoinModal'; // 코인 지급 모달 임포트
+import TaskCompleteCoinModal from './TaskCompleteCoinModal';
+import PhotoUploadModal from '../Album/PhotoUploadModal'; // 성장앨범 사진 업로드 모달 임포트
 
 // API 서비스 임포트
-import { completeTask, deleteTask } from '../../services/taskApi';
+import { completeTask, deleteTask, createTask, updateTask, getTasksByDate } from '../../services/taskApi';
 
-const TaskDetailModal = ({ selectedDate, tasks: initialTasks, onClose, isPremiumUser }) => { // isPremiumUser prop 받기
+const TaskDetailModal = ({ isPremiumUser }) => { // props로 isPremiumUser만 받음
   const navigation = useNavigation();
-  const [tasks, setTasks] = useState(initialTasks); // Task 목록을 내부 상태로 관리
+  const route = useRoute();
+
+  const { selectedDate, onTaskUpdate, onTaskDelete } = route.params;
+
+  const [tasks, setTasks] = useState([]);
   const [isEditModalVisible, setIsEditModalVisible] = useState(false);
   const [editMode, setEditMode] = useState('add');
   const [currentEditingTask, setCurrentEditingTask] = useState(null);
@@ -29,8 +34,32 @@ const TaskDetailModal = ({ selectedDate, tasks: initialTasks, onClose, isPremium
   const [isDeleteConfirmModalVisible, setIsDeleteConfirmModalVisible] = useState(false);
   const [taskToDelete, setTaskToDelete] = useState(null);
 
-  const [showCoinModal, setShowCoinModal] = useState(false); // 코인 지급 모달 상태
-  const [isLoading, setIsLoading] = useState(false); // 로딩 상태
+  const [showCoinModal, setShowCoinModal] = useState(false);
+  const [showPhotoUploadModal, setShowPhotoUploadModal] = useState(false); // 사진 업로드 모달 상태
+  const [taskForPhoto, setTaskForPhoto] = useState(null); // 사진 업로드할 Task
+
+  const [isLoading, setIsLoading] = useState(false);
+
+  // Task 목록 로드 (모달이 열릴 때마다 해당 날짜의 최신 Task를 가져옴)
+  useEffect(() => {
+    const fetchTasks = async () => {
+      setIsLoading(true);
+      try {
+        const data = await getTasksByDate(selectedDate);
+        setTasks(data);
+      } catch (error) {
+        console.error("Failed to fetch tasks for modal date:", selectedDate, error.response ? error.response.data : error.message);
+        Alert.alert('오류', 'Task 목록을 불러오는데 실패했습니다.');
+        setTasks([]);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    if (selectedDate) {
+      fetchTasks();
+    }
+  }, [selectedDate]);
+
 
   // Task 완료 체크 토글 (API 연동)
   const toggleTaskCompletion = async (taskId) => {
@@ -40,16 +69,19 @@ const TaskDetailModal = ({ selectedDate, tasks: initialTasks, onClose, isPremium
       console.log("Task 완료 처리 성공:", response);
       // UI 업데이트
       const updatedTasks = tasks.map(task =>
-        task.id === taskId ? { ...task, completed: !task.completed } : task
+        task.id === taskId ? { ...task, isCompleted: response.task.isCompleted, completedAt: response.task.completedAt } : task
       );
       setTasks(updatedTasks);
 
+      // 성장앨범 사진 업로드 필요 여부 확인
+      if (response.needsGrowthAlbumPhoto && isPremiumUser) { // 유료 사용자에게만 해당
+        setTaskForPhoto(response.task); // 사진 업로드할 Task 저장
+        setShowPhotoUploadModal(true); // 사진 업로드 모달 띄우기
+      }
+
       // 모든 Task 완료 여부 확인 후 코인 지급 모달 띄우기
-      const allCompleted = updatedTasks.every(task => task.completed);
-      if (allCompleted && updatedTasks.length > 0 && isPremiumUser) { // 유료 사용자에게만 지급
+      if (response.allTasksCompleted && isPremiumUser) {
         setShowCoinModal(true);
-        // 실제로는 백엔드 코인 지급 API 호출 (Postman 2-3 코인 적립)
-        // await earnCoinApi({ source: 'task_completion', amount: 1, description: '하루 Task 완료' });
       }
 
     } catch (error) {
@@ -84,18 +116,18 @@ const TaskDetailModal = ({ selectedDate, tasks: initialTasks, onClose, isPremium
   const onConfirmDelete = async (deleteFutureTasks) => {
     setIsLoading(true);
     try {
-      await deleteTask(taskToDelete.id); // API 호출
-      console.log("Task 삭제 성공:", taskToDelete.id);
-      Alert.alert('Task 삭제', `"${taskToDelete.text}" Task가 삭제되었습니다.`);
-      // UI에서 삭제
-      setTasks(tasks.filter(task => task.id !== taskToDelete.id));
+      const response = await deleteTask(taskToDelete.id, deleteFutureTasks); // API 호출
+      console.log("Task 삭제 성공:", response);
+      Alert.alert('Task 삭제', `"${taskToDelete.title}" Task가 삭제되었습니다. (${response.deletedCount}개)`);
       
       setIsDeleteConfirmModalVisible(false);
       setTaskToDelete(null);
-      onClose(); // 모달 닫기 (TaskCalendarScreen에서 목록 갱신을 위해)
+      
+      navigation.goBack(); // 모달 닫기
+      if (onTaskDelete) onTaskDelete(); // 부모(TaskCalendarScreen)에게 업데이트 알림
     } catch (error) {
       console.error("Task 삭제 실패:", error.response ? error.response.data : error.message);
-      Alert.alert('오류', 'Task 삭제 중 문제가 발생했습니다.');
+      Alert.alert('오류', error.response?.data?.message || 'Task 삭제 중 문제가 발생했습니다.');
     } finally {
       setIsLoading(false);
     }
@@ -108,24 +140,25 @@ const TaskDetailModal = ({ selectedDate, tasks: initialTasks, onClose, isPremium
   };
 
   // TaskEditModal에서 저장 완료 시 (API 연동)
-  const onTaskEditSave = async (updatedTask) => {
+  const onTaskEditSave = async (taskData) => { // taskData는 title, categoryId, isRepeating, hasGrowthAlbum 등
     setIsLoading(true);
     try {
       let response;
       if (editMode === 'add') {
-        response = await createTask({ ...updatedTask, date: selectedDate }); // API 호출 (날짜 추가)
-        console.log("Task 생성 성공:", response);
-        Alert.alert('Task 추가', `"${updatedTask.text}" Task가 추가되었습니다.`);
+        response = await createTask({ ...taskData, date: selectedDate }); // API 호출 (날짜는 selectedDate 사용)
+        Alert.alert('Task 추가', `"${taskData.title}" Task가 추가되었습니다.`);
       } else {
-        response = await updateTask(updatedTask.id, updatedTask); // API 호출
-        console.log("Task 수정 성공:", response);
-        Alert.alert('Task 수정', `"${updatedTask.text}" Task가 수정되었습니다.`);
+        response = await updateTask(taskData.id, taskData); // API 호출
+        Alert.alert('Task 수정', `"${taskData.title}" Task가 수정되었습니다.`);
       }
+      console.log(`Task ${editMode === 'add' ? '생성' : '수정'} 성공:`, response);
+      
       setIsEditModalVisible(false);
-      onClose(); // 모달 닫기 (TaskCalendarScreen에서 목록 갱신을 위해)
+      navigation.goBack(); // 모달 닫기
+      if (onTaskUpdate) onTaskUpdate(); // 부모(TaskCalendarScreen)에게 업데이트 알림
     } catch (error) {
       console.error(`Task ${editMode === 'add' ? '생성' : '수정'} 실패:`, error.response ? error.response.data : error.message);
-      Alert.alert('오류', `Task ${editMode === 'add' ? '생성' : '수정'} 중 문제가 발생했습니다.`);
+      Alert.alert('오류', error.response?.data?.message || `Task ${editMode === 'add' ? '생성' : '수정'} 중 문제가 발생했습니다.`);
     } finally {
       setIsLoading(false);
     }
@@ -137,14 +170,14 @@ const TaskDetailModal = ({ selectedDate, tasks: initialTasks, onClose, isPremium
       <TouchableOpacity
         style={styles.checkbox}
         onPress={() => toggleTaskCompletion(item.id)}
-        disabled={isLoading} // 로딩 중에는 클릭 비활성화
+        disabled={isLoading}
       >
-        <Text style={item.completed ? styles.checkboxChecked : styles.checkboxUnchecked}>
-          {item.completed ? '✔' : '☐'}
+        <Text style={item.isCompleted ? styles.checkboxChecked : styles.checkboxUnchecked}>
+          {item.isCompleted ? '✔' : '☐'}
         </Text>
       </TouchableOpacity>
-      <Text style={[styles.taskText, item.completed && styles.taskTextCompleted]}>
-        {item.title} {/* API 명세에 따라 'title' 사용 */}
+      <Text style={[styles.taskText, item.isCompleted && styles.taskTextCompleted]}>
+        {item.title}
       </Text>
       <View style={styles.taskActions}>
         <TouchableOpacity onPress={() => handleEditTask(item)} style={styles.actionIcon} disabled={isLoading}>
@@ -154,7 +187,7 @@ const TaskDetailModal = ({ selectedDate, tasks: initialTasks, onClose, isPremium
           <FontAwesome5 name="trash-alt" size={18} color={Colors.secondaryBrown} />
         </TouchableOpacity>
       </View>
-      {item.category && ( // 카테고리 정보가 있다면 표시
+      {item.category && item.category.name && (
         <View style={[styles.categoryTag, { backgroundColor: item.category.color || Colors.primaryBeige }]}>
           <Text style={styles.categoryText}>{item.category.name}</Text>
         </View>
@@ -165,12 +198,12 @@ const TaskDetailModal = ({ selectedDate, tasks: initialTasks, onClose, isPremium
   return (
     <View style={styles.overlay}>
       <View style={styles.modalContent}>
-        {isLoading && ( // 로딩 스피너 표시
+        {isLoading && (
           <View style={styles.loadingOverlay}>
             <ActivityIndicator size="large" color={Colors.accentApricot} />
           </View>
         )}
-        <TouchableOpacity style={styles.closeButton} onPress={onClose} disabled={isLoading}>
+        <TouchableOpacity style={styles.closeButton} onPress={() => navigation.goBack()} disabled={isLoading}>
           <FontAwesome5 name="times" size={24} color={Colors.secondaryBrown} />
         </TouchableOpacity>
 
@@ -190,7 +223,6 @@ const TaskDetailModal = ({ selectedDate, tasks: initialTasks, onClose, isPremium
           </View>
         )}
 
-        {/* 할 일 추가 버튼 */}
         <View style={styles.addTaskInputContainer}>
           <TextInput
             style={styles.addTaskInput}
@@ -216,7 +248,7 @@ const TaskDetailModal = ({ selectedDate, tasks: initialTasks, onClose, isPremium
           initialTask={currentEditingTask}
           onSave={onTaskEditSave}
           onClose={() => setIsEditModalVisible(false)}
-          isPremiumUser={isPremiumUser} // isPremiumUser 전달
+          isPremiumUser={isPremiumUser}
         />
       </Modal>
 
@@ -231,7 +263,7 @@ const TaskDetailModal = ({ selectedDate, tasks: initialTasks, onClose, isPremium
           task={taskToDelete}
           onConfirm={onConfirmDelete}
           onCancel={onCancelDelete}
-          isPremiumUser={isPremiumUser} // isPremiumUser 전달
+          isPremiumUser={isPremiumUser}
         />
       </Modal>
 
@@ -243,6 +275,16 @@ const TaskDetailModal = ({ selectedDate, tasks: initialTasks, onClose, isPremium
         onRequestClose={() => setShowCoinModal(false)}
       >
         <TaskCompleteCoinModal onClose={() => setShowCoinModal(false)} isPremiumUser={isPremiumUser} />
+      </Modal>
+
+      {/* 성장앨범 사진 업로드 모달 */}
+      <Modal
+        animationType="slide"
+        transparent={true}
+        visible={showPhotoUploadModal}
+        onRequestClose={() => setShowPhotoUploadModal(false)}
+      >
+        <PhotoUploadModal onClose={() => setShowPhotoUploadModal(false)} isPremiumUser={isPremiumUser} taskId={taskForPhoto?.id} />
       </Modal>
     </View>
   );
@@ -267,7 +309,7 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     elevation: 10,
   },
-  loadingOverlay: { // 로딩 스피너 오버레이
+  loadingOverlay: {
     position: 'absolute',
     top: 0,
     left: 0,

@@ -1,7 +1,7 @@
 // src/screens/Analysis/DailyAnalysisView.jsx
 
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, ScrollView, ActivityIndicator, Alert } from 'react-native'; // ActivityIndicator, Alert 임포트 추가
+import { View, Text, StyleSheet, FlatList, ScrollView, ActivityIndicator, Alert } from 'react-native';
 import { format } from 'date-fns';
 
 // 공통 스타일 및 컴포넌트 임포트
@@ -9,9 +9,9 @@ import { Colors } from '../../styles/color';
 import { FontSizes, FontWeights } from '../../styles/Fonts';
 
 // API 서비스 임포트
-import { getDailyAnalysis } from '../../services/analysisApi'; // API 임포트
+import { getDailyAnalysis } from '../../services/analysisApi';
 
-const DailyAnalysisView = ({ date, isPremiumUser }) => { // isPremiumUser prop 받기
+const DailyAnalysisView = ({ date, isPremiumUser }) => {
   const [dailyData, setDailyData] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -20,7 +20,7 @@ const DailyAnalysisView = ({ date, isPremiumUser }) => { // isPremiumUser prop �
     setIsLoading(true);
     try {
       const formattedDate = format(new Date(dateToFetch), 'yyyy-MM-dd');
-      const data = await getDailyAnalysis(formattedDate); // API 호출
+      const data = await getDailyAnalysis(formattedDate);
       setDailyData(data);
     } catch (error) {
       console.error("Failed to fetch daily analysis data:", error.response ? error.response.data : error.message);
@@ -39,7 +39,7 @@ const DailyAnalysisView = ({ date, isPremiumUser }) => { // isPremiumUser prop �
   // 시간대별 바 차트 데이터 생성 (3번)
   const hourlyChartData = Array.from({ length: 24 }, (_, i) => {
     const hour = i.toString().padStart(2, '0');
-    const activitiesInHour = dailyData?.hourlyData?.[hour] || {}; // optional chaining
+    const activitiesInHour = dailyData?.hourlyData?.[hour] || {};
     const totalMinutesInHour = Object.values(activitiesInHour).reduce((sum, min) => sum + min, 0);
     return { hour, totalMinutes: totalMinutesInHour, activities: activitiesInHour };
   });
@@ -48,7 +48,7 @@ const DailyAnalysisView = ({ date, isPremiumUser }) => { // isPremiumUser prop �
     <View style={styles.activityItem}>
       <View style={[styles.activityColorIndicator, { backgroundColor: item.color || Colors.secondaryBrown }]} />
       <Text style={styles.activityName}>{item.name}</Text>
-      <Text style={styles.activityTime}>{item.time}분</Text>
+      <Text style={styles.activityTime}>{item.minutes}분</Text> {/* <-- item.time 대신 item.minutes 사용 */}
     </View>
   );
 

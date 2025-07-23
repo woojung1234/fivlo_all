@@ -1,7 +1,7 @@
 // src/screens/Pomodoro/PomodoroCycleCompleteScreen.jsx
 
-import React, { useState } from 'react'; // useState 임포트 추가
-import { View, Text, StyleSheet, Image, ScrollView, ActivityIndicator, Alert } from 'react-native'; // ActivityIndicator, Alert 임포트 추가
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, Image, ScrollView, ActivityIndicator, Alert } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -14,21 +14,20 @@ import Button from '../../components/common/Button';
 import CharacterImage from '../../components/common/CharacterImage';
 
 // API 서비스 임포트
-import { updatePomodoroSessionStatus } from '../../services/pomodoroApi'; // API 임포트
+import { updatePomodoroSessionStatus } from '../../services/pomodoroApi';
 
-const PomodoroCycleCompleteScreen = ({ isPremiumUser }) => { // isPremiumUser prop 받기
+const PomodoroCycleCompleteScreen = ({ isPremiumUser }) => {
   const navigation = useNavigation();
   const route = useRoute();
   const insets = useSafeAreaInsets();
 
-  const { selectedGoal, cycleCount } = route.params;
-  const [isLoading, setIsLoading] = useState(false); // 로딩 상태
+  const { selectedGoal, cycleCount, coinEarned } = route.params; // coinEarned 받기
+  const [isLoading, setIsLoading] = useState(false);
 
   // "계속하기" 버튼 (API 연동 준비)
   const handleContinue = async () => {
     setIsLoading(true);
     try {
-      // 백엔드에 다음 사이클 시작을 알림 (필요시 API 추가)
       await updatePomodoroSessionStatus(selectedGoal.id, 'start'); // 세션 상태를 start로 업데이트
       console.log('다음 사이클 계속');
       navigation.navigate('PomodoroTimer', { selectedGoal, initialTimeLeft: 25 * 60, initialIsFocusMode: true, initialCycleCount: cycleCount, resume: true });
@@ -43,7 +42,7 @@ const PomodoroCycleCompleteScreen = ({ isPremiumUser }) => { // isPremiumUser pr
   // "그만하기" 버튼 (API 연동 준비)
   const handleStop = () => {
     // 최종 완료 화면으로 이동 (PomodoroFinishScreen)
-    navigation.navigate('PomodoroFinish', { selectedGoal, isPremiumUser }); // isPremiumUser 전달
+    navigation.navigate('PomodoroFinish', { selectedGoal, isPremiumUser, coinEarned }); // coinEarned 전달
   };
 
   return (

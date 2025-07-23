@@ -15,38 +15,28 @@ import Button from '../../components/common/Button';
 import CharacterImage from '../../components/common/CharacterImage';
 
 // API 서비스 임포트
-import { earnCoin } from '../../services/coinApi'; // 코인 적립 API 임포트
+import { earnCoin } from '../../services/coinApi';
 
 const PomodoroFinishScreen = ({ isPremiumUser }) => {
   const navigation = useNavigation();
   const route = useRoute();
   const insets = useSafeAreaInsets();
 
-  const { selectedGoal } = route.params;
+  const { selectedGoal, coinEarned } = route.params; // coinEarned 받기
   const [showCoinModal, setShowCoinModal] = useState(false);
-  const [isLoading, setIsLoading] = useState(false); // 로딩 상태
+  const [isLoading, setIsLoading] = useState(false);
 
-  // 코인 지급 로직
+  // 코인 지급 로직 (모달이 보일 때 실행)
   useEffect(() => {
     const giveCoin = async () => {
-      if (isPremiumUser) {
-        setIsLoading(true);
-        try {
-          // Postman 2-3 코인 적립 API 호출 (1일 1회 로직은 백엔드에서 관리)
-          await earnCoin('pomodoro_completion', 1, `포모도로 완료: ${selectedGoal.title}`);
-          console.log('포모도로 완료 코인 지급 성공');
-          // Alert.alert('코인 지급', '포모도로 완료로 1코인이 지급되었습니다!');
-          setShowCoinModal(true); // 코인 모달 띄우기
-        } catch (error) {
-          console.error('포모도로 완료 코인 지급 실패:', error.response ? error.response.data : error.message);
-          Alert.alert('코인 지급 실패', error.response?.data?.message || '코인 지급 중 문제가 발생했습니다.');
-        } finally {
-          setIsLoading(false);
-        }
+      // coinEarned가 0보다 크고, 모달이 보일 때만 코인 지급 모달 띄움
+      if (coinEarned > 0 && isPremiumUser) {
+        // 실제 코인 지급은 이미 PomodoroCycleCompleteScreen에서 처리되었으므로, 여기서는 모달만 띄움
+        setShowCoinModal(true);
       }
     };
     giveCoin();
-  }, [isPremiumUser, selectedGoal.title]); // selectedGoal.title이 변경될 때도 실행되도록 의존성 추가
+  }, [isPremiumUser, coinEarned]); // coinEarned가 변경될 때도 실행되도록 의존성 추가
 
   // 컴포넌트 마운트 시 음성 알림
   useEffect(() => {
@@ -63,7 +53,7 @@ const PomodoroFinishScreen = ({ isPremiumUser }) => {
   // "집중도 분석 보러가기" 버튼
   const handleGoToAnalysis = () => {
     Alert.alert('이동', '집중도 분석 페이지로 이동합니다.');
-    // navigation.navigate('AnalysisGraph'); // 집중도 분석 페이지로 이동
+    // navigation.navigate('AnalysisGraph');
   };
 
   // "홈 화면으로" 버튼

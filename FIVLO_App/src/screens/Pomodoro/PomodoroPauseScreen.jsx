@@ -78,7 +78,7 @@ const PomodoroPauseScreen = ({ isPremiumUser }) => {
       )}
 
       <ScrollView contentContainerStyle={styles.contentContainer}>
-        <Text style={styles.goalText}>{selectedGoal.title}</Text>
+        <Text style={styles.goalText}>{selectedGoal.title}</Text> {/* 'goal' 대신 'title' 사용 */}
         
         <CharacterImage style={styles.obooniCharacter} />
         <Text style={styles.pausedTimeText}>
