@@ -1,7 +1,7 @@
 // src/screens/Reminder/ReminderScreen.jsx
 
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert, ScrollView, ActivityIndicator } from 'react-native'; // ActivityIndicator 임포트 추가
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert, ScrollView, ActivityIndicator } from 'react-native';
 import { useNavigation, useIsFocused } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FontAwesome5 } from '@expo/vector-icons';
@@ -14,7 +14,7 @@ import { FontSizes, FontWeights } from '../../styles/Fonts';
 import Header from '../../components/common/Header';
 
 // API 서비스 임포트
-import { getReminders } from '../../services/reminder'; // API 임포트
+import { getReminders } from '../../services/reminder';
 
 const ReminderScreen = ({ isPremiumUser }) => {
   const navigation = useNavigation();
@@ -22,13 +22,13 @@ const ReminderScreen = ({ isPremiumUser }) => {
   const isFocused = useIsFocused();
 
   const [reminders, setReminders] = useState([]);
-  const [isLoading, setIsLoading] = useState(false); // 로딩 상태
+  const [isLoading, setIsLoading] = useState(false);
 
   // 알림 목록 로드
   const fetchReminders = async () => {
     setIsLoading(true);
     try {
-      const data = await getReminders(); // API 호출
+      const data = await getReminders();
       setReminders(data);
     } catch (error) {
       console.error("Failed to fetch reminders:", error.response ? error.response.data : error.message);
@@ -60,13 +60,13 @@ const ReminderScreen = ({ isPremiumUser }) => {
     <TouchableOpacity style={styles.reminderItem} onPress={() => handleEditReminder(item)} disabled={isLoading}>
       <View style={styles.reminderContent}>
         <Text style={styles.reminderTitle}>{item.title}</Text>
-        <Text style={styles.reminderTime}>{item.time.hour.toString().padStart(2, '0')}:{item.time.minute.toString().padStart(2, '0')}</Text> {/* API 응답 형식에 맞춰 시간 표시 */}
+        <Text style={styles.reminderTime}>{item.time.hour.toString().padStart(2, '0')}:{item.time.minute.toString().padStart(2, '0')}</Text>
       </View>
       <View style={styles.reminderLocation}>
         <Text style={styles.reminderLocationText}>
-          {item.location && item.location.name ? item.location.name : '장소 설정 안 함'} {/* API 응답 형식에 맞춰 장소 표시 */}
+          {item.location && item.location.name ? item.location.name : '장소 설정 안 함'}
         </Text>
-        {item.location && !isPremiumUser && ( // 장소 설정되어 있고 무료 사용자면 잠금 표시
+        {item.location && !isPremiumUser && (
           <FontAwesome5 name="lock" size={16} color={Colors.secondaryBrown} style={styles.lockIcon} />
         )}
       </View>
@@ -77,7 +77,7 @@ const ReminderScreen = ({ isPremiumUser }) => {
     <View style={[styles.screenContainer, { paddingTop: insets.top + 20 }]}>
       <Header title="망각방지 알림" showBackButton={true} />
 
-      {isLoading && ( // 로딩 스피너 오버레이
+      {isLoading && (
         <View style={styles.loadingOverlay}>
           <ActivityIndicator size="large" color={Colors.accentApricot} />
         </View>
@@ -98,7 +98,6 @@ const ReminderScreen = ({ isPremiumUser }) => {
         )}
       </ScrollView>
 
-      {/* "+" 버튼 (2번) */}
       <TouchableOpacity style={styles.addButton} onPress={handleAddReminder} disabled={isLoading}>
         <FontAwesome5 name="plus" size={24} color={Colors.textLight} />
       </TouchableOpacity>
@@ -111,7 +110,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: Colors.primaryBeige,
   },
-  loadingOverlay: { // 로딩 스피너 오버레이
+  loadingOverlay: {
     position: 'absolute',
     top: 0,
     left: 0,

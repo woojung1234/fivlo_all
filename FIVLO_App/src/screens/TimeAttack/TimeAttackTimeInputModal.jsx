@@ -1,7 +1,7 @@
 // src/screens/TimeAttack/TimeAttackTimeInputModal.jsx
 
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, Modal, TouchableOpacity, Alert, TextInput } from 'react-native'; // Modal 임포트 확인!
+import { View, Text, StyleSheet, Modal, TouchableOpacity, Alert, TextInput, ActivityIndicator } from 'react-native'; // ActivityIndicator 임포트 추가
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { FontAwesome5 } from '@expo/vector-icons';
 
@@ -10,18 +10,13 @@ import { Colors } from '../../styles/color';
 import { FontSizes, FontWeights } from '../../styles/Fonts';
 import Button from '../../components/common/Button';
 
-const TimeAttackTimeInputModal = () => {
+const TimeAttackTimeInputModal = ({ isPremiumUser }) => { // isPremiumUser prop 받기
   const navigation = useNavigation();
   const route = useRoute();
-  // onTimeSelected를 params로 직접 전달하는 대신, goBack() 시 콜백을 호출하도록 변경
-  const { initialMinutes } = route.params; // onTimeSelected는 더 이상 params로 받지 않음
+  const { initialMinutes } = route.params;
 
   const [inputMinutes, setInputMinutes] = useState(initialMinutes.toString().padStart(2, '0'));
-  const [showKeyboard, setShowKeyboard] = useState(false);
-
-  useEffect(() => {
-    setShowKeyboard(true);
-  }, []);
+  const [isLoading, setIsLoading] = useState(false); // 로딩 상태
 
   const handleInputConfirm = () => {
     const minutes = parseInt(inputMinutes, 10);
@@ -29,7 +24,7 @@ const TimeAttackTimeInputModal = () => {
       Alert.alert('알림', '0분 이상 999분 이하의 유효한 시간을 입력해주세요.');
       return;
     }
-    // goBack() 시 이전 화면에 값을 전달하는 방법 (React Navigation 5+ 권장 방식)
+    // navigation.navigate 대신 navigation.goBack()으로 이전 화면에 값 전달
     navigation.navigate({
       name: 'TimeAttackGoalSetting', // 돌아갈 화면의 이름
       params: { selectedMinutes: minutes.toString().padStart(2, '0') }, // 전달할 값
@@ -42,17 +37,19 @@ const TimeAttackTimeInputModal = () => {
   };
 
   const handleNumberPress = (num) => {
-    if (inputMinutes === '00' && num !== '.') {
-      setInputMinutes(num.toString());
-    } else {
-      if (inputMinutes.length < 3) {
-        setInputMinutes(prev => prev + num.toString());
-      }
-    }
+    setInputMinutes(prev => {
+      const currentVal = prev === '00' ? '' : prev;
+      const newVal = currentVal + num.toString();
+      if (newVal.length > 3) return prev; // 최대 3자리
+      return newVal.padStart(2, '0'); // 항상 2자리 이상 유지 (예: '05', '10')
+    });
   };
 
   const handleDelete = () => {
-    setInputMinutes(prev => prev.slice(0, -1) || '00');
+    setInputMinutes(prev => {
+      const newVal = prev.slice(0, -1);
+      return newVal === '' ? '00' : newVal.padStart(2, '0');
+    });
   };
 
   return (
@@ -63,6 +60,11 @@ const TimeAttackTimeInputModal = () => {
       onRequestClose={handleCancel}
     >
       <View style={styles.overlay}>
+        {isLoading && ( // 로딩 스피너 오버레이
+          <View style={styles.loadingOverlay}>
+            <ActivityIndicator size="large" color={Colors.accentApricot} />
+          </View>
+        )}
         <View style={styles.modalContent}>
           <Text style={styles.modalTitle}>시간 입력 (분)</Text>
           <TextInput
@@ -73,26 +75,27 @@ const TimeAttackTimeInputModal = () => {
             maxLength={3}
             showSoftInputOnFocus={false}
             textAlign="center"
+            editable={!isLoading}
           />
 
           <View style={styles.keypadContainer}>
             {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(num => (
-              <TouchableOpacity key={num} style={styles.keypadButton} onPress={() => handleNumberPress(num)}>
+              <TouchableOpacity key={num} style={styles.keypadButton} onPress={() => handleNumberPress(num)} disabled={isLoading}>
                 <Text style={styles.keypadButtonText}>{num}</Text>
               </TouchableOpacity>
             ))}
             <View style={styles.keypadButtonPlaceholder} />
-            <TouchableOpacity style={styles.keypadButton} onPress={() => handleNumberPress(0)}>
+            <TouchableOpacity style={styles.keypadButton} onPress={() => handleNumberPress(0)} disabled={isLoading}>
               <Text style={styles.keypadButtonText}>0</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.keypadButton} onPress={handleDelete}>
+            <TouchableOpacity style={styles.keypadButton} onPress={handleDelete} disabled={isLoading}>
               <FontAwesome5 name="backspace" size={24} color={Colors.textDark} />
             </TouchableOpacity>
           </View>
 
           <View style={styles.actionButtonContainer}>
-            <Button title="취소" onPress={handleCancel} primary={false} style={styles.actionButton} />
-            <Button title="확인" onPress={handleInputConfirm} style={styles.actionButton} />
+            <Button title="취소" onPress={handleCancel} primary={false} style={styles.actionButton} disabled={isLoading} />
+            <Button title="확인" onPress={handleInputConfirm} style={styles.actionButton} disabled={isLoading} />
           </View>
         </View>
       </View>
@@ -118,6 +121,18 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 10,
     elevation: 10,
+  },
+  loadingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(255, 255, 255, 0.8)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 20,
+    zIndex: 10,
   },
   modalTitle: {
     fontSize: FontSizes.large,

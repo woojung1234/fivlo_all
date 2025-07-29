@@ -1,4 +1,4 @@
-// src/screens/ReminderLocationAlertModal.jsx
+// src/screens/Reminder/ReminderLocationAlertModal.jsx
 
 import React from 'react';
 import { View, Text, StyleSheet, Modal } from 'react-native';

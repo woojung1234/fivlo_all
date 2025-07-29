@@ -1,7 +1,7 @@
 // src/screens/Reminder/ReminderCompleteCoinModal.jsx
 
-import React, { useState, useEffect } from 'react'; // useState, useEffect 임포트 추가
-import { View, Text, StyleSheet, Modal, ActivityIndicator, Alert } from 'react-native'; // ActivityIndicator, Alert 임포트 추가
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, Modal, ActivityIndicator, Alert } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 
 // 공통 스타일 및 컴포넌트 임포트
@@ -11,22 +11,19 @@ import Button from '../../components/common/Button';
 import CharacterImage from '../../components/common/CharacterImage';
 
 // API 서비스 임포트
-import { earnCoin } from '../../services/coinApi'; // 코인 적립 API 임포트
+import { earnCoin } from '../../services/coinApi';
 
-const ReminderCompleteCoinModal = ({ isVisible, onClose, isPremiumUser, reminderTitle }) => { // isPremiumUser, reminderTitle prop 받기
+const ReminderCompleteCoinModal = ({ isVisible, onClose, isPremiumUser, reminderTitle }) => {
   const navigation = useNavigation();
-  const [isLoading, setIsLoading] = useState(false); // 로딩 상태
+  const [isLoading, setIsLoading] = useState(false);
 
-  // 코인 지급 로직 (모달이 보일 때 실행)
   useEffect(() => {
     const giveCoin = async () => {
-      if (isVisible && isPremiumUser) { // 모달이 보이고 유료 사용자일 때만
+      if (isVisible && isPremiumUser) {
         setIsLoading(true);
         try {
-          // Postman 2-3 코인 적립 API 호출 (1일 1회 로직은 백엔드에서 관리)
-          await earnCoin('reminder_checklist_completion', 1, `알림 체크리스트 완료: ${reminderTitle}`);
+          await earnCoin('reminder_complete', 1, `알림 체크리스트 완료: ${reminderTitle}`);
           console.log('알림 체크리스트 완료 코인 지급 성공');
-          // Alert.alert('코인 지급', '알림 체크리스트 완료로 1코인이 지급되었습니다!');
         } catch (error) {
           console.error('알림 체크리스트 코인 지급 실패:', error.response ? error.response.data : error.message);
           Alert.alert('코인 지급 실패', error.response?.data?.message || '코인 지급 중 문제가 발생했습니다.');
@@ -48,7 +45,7 @@ const ReminderCompleteCoinModal = ({ isVisible, onClose, isPremiumUser, reminder
     >
       <View style={styles.overlay}>
         <View style={styles.modalContent}>
-          {isLoading && ( // 로딩 스피너 오버레이
+          {isLoading && (
             <View style={styles.loadingOverlay}>
               <ActivityIndicator size="large" color={Colors.accentApricot} />
             </View>
@@ -83,7 +80,7 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     elevation: 10,
   },
-  loadingOverlay: { // 로딩 스피너 오버레이
+  loadingOverlay: {
     position: 'absolute',
     top: 0,
     left: 0,

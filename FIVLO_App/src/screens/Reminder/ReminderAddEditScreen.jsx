@@ -1,7 +1,7 @@
 // src/screens/Reminder/ReminderAddEditScreen.jsx
 
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, Alert, FlatList, Modal, ActivityIndicator } from 'react-native'; // ActivityIndicator 임포트 추가
+import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, Alert, FlatList, Modal, ActivityIndicator } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FontAwesome5 } from '@expo/vector-icons';
@@ -18,39 +18,36 @@ import Button from '../../components/common/Button';
 import ReminderTimeSettingModal from './ReminderTimeSettingModal';
 
 // API 서비스 임포트
-import { createReminder, updateReminder } from '../../services/reminder'; // API 임포트
+import { createReminder, updateReminder } from '../../services/reminder';
 
 const ReminderAddEditScreen = ({ isPremiumUser }) => {
   const navigation = useNavigation();
   const route = useRoute();
   const insets = useSafeAreaInsets();
 
-  const initialReminder = route.params?.reminder; // 수정 모드일 경우 기존 알림 데이터
+  const initialReminder = route.params?.reminder;
 
   const [title, setTitle] = useState(initialReminder ? initialReminder.title : '');
-  const [time, setTime] = useState(initialReminder ? `${initialReminder.time.hour.toString().padStart(2, '0')}:${initialReminder.time.minute.toString().padStart(2, '0')}` : '09:00'); // 기본 시간
-  const [repeatDays, setRepeatDays] = useState(initialReminder ? initialReminder.days || [] : []); // 요일 반복
-  const [location, setLocation] = useState(initialReminder && initialReminder.location ? initialReminder.location.name : ''); // 장소 이름
-  const [locationCoords, setLocationCoords] = useState(initialReminder && initialReminder.location ? { latitude: initialReminder.location.latitude, longitude: initialReminder.location.longitude } : null); // 장소 좌표
+  const [time, setTime] = useState(initialReminder ? `${initialReminder.time.hour.toString().padStart(2, '0')}:${initialReminder.time.minute.toString().padStart(2, '0')}` : '09:00');
+  const [repeatDays, setRepeatDays] = useState(initialReminder ? initialReminder.days || [] : []);
+  const [location, setLocation] = useState(initialReminder && initialReminder.location ? initialReminder.location.name : '');
+  const [locationCoords, setLocationCoords] = useState(initialReminder && initialReminder.location ? { latitude: initialReminder.location.latitude, longitude: initialReminder.location.longitude } : null);
 
-  const [isLocationLocked, setIsLocationLocked] = useState(!isPremiumUser); // 장소 설정 잠금 여부 (isPremiumUser에 따라)
+  const [isLocationLocked, setIsLocationLocked] = useState(!isPremiumUser);
 
   const [checklistItems, setChecklistItems] = useState(initialReminder ? initialReminder.checklist || [''] : ['']);
   const [showTimeModal, setShowTimeModal] = useState(false);
-  const [isLoading, setIsLoading] = useState(false); // 로딩 상태
+  const [isLoading, setIsLoading] = useState(false);
 
-  // 시간 설정 모달에서 시간 선택 시 콜백
   const onTimeSelected = (selectedTime, selectedRepeatDays) => {
     setTime(selectedTime);
     setRepeatDays(selectedRepeatDays);
     setShowTimeModal(false);
   };
 
-  // 장소 설정 클릭 핸들러
   const handleLocationSetting = () => {
     if (!isPremiumUser) {
       Alert.alert('유료 기능', '장소 설정은 유료 버전에서만 이용 가능합니다. 결제 페이지로 이동하시겠습니까?');
-      // navigation.navigate('PaymentScreen'); // 결제 페이지로 이동 (4번 페이지)
     } else {
       navigation.navigate('ReminderLocationSetting', {
         initialLocation: location,
@@ -63,25 +60,21 @@ const ReminderAddEditScreen = ({ isPremiumUser }) => {
     }
   };
 
-  // 체크리스트 항목 추가
   const addChecklistItem = () => {
     setChecklistItems([...checklistItems, '']);
   };
 
-  // 체크리스트 항목 텍스트 변경
   const handleChecklistItemChange = (text, index) => {
     const newItems = [...checklistItems];
     newItems[index] = text;
     setChecklistItems(newItems);
   };
 
-  // 체크리스트 항목 삭제
   const removeChecklistItem = (index) => {
     const newItems = checklistItems.filter((_, i) => i !== index);
     setChecklistItems(newItems);
   };
 
-  // "저장" 버튼 클릭 (API 연동)
   const handleSaveReminder = async () => {
     if (!title.trim()) {
       Alert.alert('알림', '제목을 입력해주세요.');
@@ -96,24 +89,23 @@ const ReminderAddEditScreen = ({ isPremiumUser }) => {
         time: { hour, minute },
         days: repeatDays,
         checklist: checklistItems.filter(item => item.trim() !== ''),
-        // 장소 정보 (유료 사용자만)
         location: isPremiumUser && location && locationCoords ? {
           name: location,
           latitude: locationCoords.latitude,
           longitude: locationCoords.longitude,
-        } : undefined, // 장소 설정 안 했으면 undefined
+        } : undefined,
       };
 
       let response;
       if (initialReminder) {
-        response = await updateReminder(initialReminder.id, reminderData); // API 호출 (수정)
+        response = await updateReminder(initialReminder.id, reminderData);
         Alert.alert('알림 수정', `"${title}" 알림이 수정되었습니다.`);
       } else {
-        response = await createReminder(reminderData); // API 호출 (생성)
+        response = await createReminder(reminderData);
         Alert.alert('알림 저장', `"${title}" 알림이 저장되었습니다.`);
       }
       console.log('알림 저장/수정 성공:', response);
-      navigation.navigate('Reminder'); // ReminderScreen으로 돌아가기
+      navigation.navigate('Reminder');
     } catch (error) {
       console.error('알림 저장/수정 실패:', error.response ? error.response.data : error.message);
       Alert.alert('오류', error.response?.data?.message || '알림 저장/수정 중 문제가 발생했습니다.');
@@ -126,14 +118,13 @@ const ReminderAddEditScreen = ({ isPremiumUser }) => {
     <View style={[styles.screenContainer, { paddingTop: insets.top + 20 }]}>
       <Header title={initialReminder ? "알림 수정" : "새로운 항목 추가"} showBackButton={true} />
 
-      {isLoading && ( // 로딩 스피너 오버레이
+      {isLoading && (
         <View style={styles.loadingOverlay}>
           <ActivityIndicator size="large" color={Colors.accentApricot} />
         </View>
       )}
 
       <ScrollView contentContainerStyle={styles.scrollViewContentContainer}>
-        {/* 제목 입력 */}
         <Text style={styles.sectionTitle}>제목 입력</Text>
         <TextInput
           style={styles.inputField}
@@ -144,26 +135,23 @@ const ReminderAddEditScreen = ({ isPremiumUser }) => {
           editable={!isLoading}
         />
 
-        {/* 시간 설정 */}
         <Text style={styles.sectionTitle}>시간 설정</Text>
         <TouchableOpacity style={styles.settingButton} onPress={() => setShowTimeModal(true)} disabled={isLoading}>
           <Text style={styles.settingButtonText}>{time}</Text>
           <FontAwesome5 name="chevron-right" size={18} color={Colors.secondaryBrown} />
         </TouchableOpacity>
 
-        {/* 장소 설정 (유료 기능) */}
         <Text style={styles.sectionTitle}>장소 설정</Text>
         <TouchableOpacity style={styles.settingButton} onPress={handleLocationSetting} disabled={isLoading}>
           <Text style={styles.settingButtonText}>
             {location ? location : '장소 설정 안 함'}
           </Text>
-          {isLocationLocked && ( // 무료 사용자면 잠금 아이콘 표시
+          {isLocationLocked && (
             <FontAwesome5 name="lock" size={18} color={Colors.secondaryBrown} style={styles.lockIcon} />
           )}
           <FontAwesome5 name="chevron-right" size={18} color={Colors.secondaryBrown} />
         </TouchableOpacity>
 
-        {/* 체크리스트 항목 */}
         <Text style={styles.sectionTitle}>체크리스트 항목</Text>
         {checklistItems.map((item, index) => (
           <View key={index} style={styles.checklistItemContainer}>
@@ -187,11 +175,9 @@ const ReminderAddEditScreen = ({ isPremiumUser }) => {
           <Text style={styles.addChecklistItemText}>항목 추가</Text>
         </TouchableOpacity>
 
-        {/* 저장 버튼 */}
         <Button title="저장" onPress={handleSaveReminder} style={styles.saveButton} disabled={isLoading} />
       </ScrollView>
 
-      {/* 시간 설정 모달 */}
       <Modal
         animationType="slide"
         transparent={true}
@@ -200,10 +186,10 @@ const ReminderAddEditScreen = ({ isPremiumUser }) => {
       >
         <ReminderTimeSettingModal
           initialTime={time}
-          initialRepeatDays={repeatDays} // 요일 반복 초기값 전달
+          initialRepeatDays={repeatDays}
           onTimeSelected={onTimeSelected}
           onClose={() => setShowTimeModal(false)}
-          isPremiumUser={isPremiumUser} // isPremiumUser 전달
+          isPremiumUser={isPremiumUser}
         />
       </Modal>
     </View>
@@ -215,7 +201,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: Colors.primaryBeige,
   },
-  loadingOverlay: { // 로딩 스피너 오버레이
+  loadingOverlay: {
     position: 'absolute',
     top: 0,
     left: 0,
@@ -273,7 +259,7 @@ const styles = StyleSheet.create({
     color: Colors.textDark,
   },
   lockIcon: {
-    marginRight: 10, // 잠금 아이콘과 텍스트 사이 간격
+    marginRight: 10,
   },
   checklistItemContainer: {
     flexDirection: 'row',

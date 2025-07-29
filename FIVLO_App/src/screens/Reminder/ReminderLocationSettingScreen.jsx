@@ -1,7 +1,7 @@
 // src/screens/Reminder/ReminderLocationSettingScreen.jsx
 
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, Alert, ScrollView, ActivityIndicator } from 'react-native'; // ActivityIndicator 임포트 추가
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, Alert, ScrollView, ActivityIndicator } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FontAwesome5 } from '@expo/vector-icons';
@@ -14,7 +14,7 @@ import { FontSizes, FontWeights } from '../../styles/Fonts';
 import Header from '../../components/common/Header';
 import Button from '../../components/common/Button';
 
-const ReminderLocationSettingScreen = ({ isPremiumUser }) => { // isPremiumUser prop 받기
+const ReminderLocationSettingScreen = ({ isPremiumUser }) => {
   const navigation = useNavigation();
   const route = useRoute();
   const insets = useSafeAreaInsets();
@@ -22,24 +22,21 @@ const ReminderLocationSettingScreen = ({ isPremiumUser }) => { // isPremiumUser 
   const { initialLocation, initialLocationCoords, onLocationSelected } = route.params;
 
   const [locationName, setLocationName] = useState(initialLocation || '');
-  const [addressInput, setAddressInput] = useState(''); // 주소 입력 칸
-  const [mapRegion, setMapRegion] = useState({ // 지도 초기 위치 (임시)
-    latitude: initialLocationCoords?.latitude || 35.8200, // 전주시 위도
-    longitude: initialLocationCoords?.longitude || 127.1500, // 전주시 경도
+  const [addressInput, setAddressInput] = useState('');
+  const [mapRegion, setMapRegion] = useState({
+    latitude: initialLocationCoords?.latitude || 35.8200,
+    longitude: initialLocationCoords?.longitude || 127.1500,
     latitudeDelta: 0.0922,
     longitudeDelta: 0.0421,
   });
-  const [isLoading, setIsLoading] = useState(false); // 로딩 상태
+  const [isLoading, setIsLoading] = useState(false);
 
-  // "저장하기" 버튼 클릭
   const handleSaveLocation = () => {
     if (!locationName.trim() && !addressInput.trim()) {
       Alert.alert('알림', '장소 이름 또는 주소를 입력해주세요.');
       return;
     }
     
-    // 실제로는 주소를 지오코딩하여 위도/경도 얻는 로직 필요
-    // 여기서는 임시로 고정된 좌표 또는 입력된 주소를 이름으로 사용
     const finalLocationName = locationName.trim() || addressInput.trim();
     const finalLocationCoords = {
       latitude: mapRegion.latitude,
@@ -57,14 +54,13 @@ const ReminderLocationSettingScreen = ({ isPremiumUser }) => { // isPremiumUser 
     <View style={[styles.screenContainer, { paddingTop: insets.top + 20 }]}>
       <Header title="장소 설정" showBackButton={true} />
 
-      {isLoading && ( // 로딩 스피너 오버레이
+      {isLoading && (
         <View style={styles.loadingOverlay}>
           <ActivityIndicator size="large" color={Colors.accentApricot} />
         </View>
       )}
 
       <ScrollView contentContainerStyle={styles.scrollViewContentContainer}>
-        {/* 장소 이름 입력 칸 */}
         <Text style={styles.sectionTitle}>장소 이름을 입력해주세요</Text>
         <TextInput
           style={styles.inputField}
@@ -75,7 +71,6 @@ const ReminderLocationSettingScreen = ({ isPremiumUser }) => { // isPremiumUser 
           editable={!isLoading}
         />
 
-        {/* 주소 입력 칸 */}
         <Text style={styles.sectionTitle}>Q 장소를 입력해주세요</Text>
         <TextInput
           style={styles.inputField}
@@ -86,26 +81,12 @@ const ReminderLocationSettingScreen = ({ isPremiumUser }) => { // isPremiumUser 
           editable={!isLoading}
         />
 
-        {/* 지도 표시 (플레이스홀더) */}
         <View style={styles.mapPlaceholder}>
-          {/* <MapView
-            style={styles.map}
-            region={mapRegion}
-            onRegionChangeComplete={setMapRegion} // 지도 스크롤 시 위치 업데이트
-          >
-            <MapView.Circle
-              center={{ latitude: mapRegion.latitude, longitude: mapRegion.longitude }}
-              radius={100} // 반경 100m
-              strokeColor={'rgba(0, 0, 255, 0.5)'}
-              fillColor={'rgba(0, 0, 255, 0.2)'}
-            />
-          </MapView> */}
           <Text style={styles.mapPlaceholderText}>지도 표시 영역</Text>
           <Text style={styles.mapPlaceholderText}>(react-native-maps 설치 및 설정 필요)</Text>
           <Text style={styles.mapRadiusText}>반경 100m</Text>
         </View>
 
-        {/* 저장하기 버튼 */}
         <Button title="저장하기" onPress={handleSaveLocation} style={styles.saveButton} disabled={isLoading} />
       </ScrollView>
     </View>
@@ -117,7 +98,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: Colors.primaryBeige,
   },
-  loadingOverlay: { // 로딩 스피너 오버레이
+  loadingOverlay: {
     position: 'absolute',
     top: 0,
     left: 0,

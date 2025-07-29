@@ -1,7 +1,7 @@
 // src/screens/Reminder/ReminderTimeSettingModal.jsx
 
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, Modal, TouchableOpacity, Alert, ActivityIndicator } from 'react-native'; // ActivityIndicator 임포트 추가
+import { View, Text, StyleSheet, Modal, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { format, setHours, setMinutes } from 'date-fns';
 import { FontAwesome5 } from '@expo/vector-icons';
@@ -11,12 +11,12 @@ import { Colors } from '../../styles/color';
 import { FontSizes, FontWeights } from '../../styles/Fonts';
 import Button from '../../components/common/Button';
 
-const ReminderTimeSettingModal = ({ initialTime, initialRepeatDays, onTimeSelected, onClose, isPremiumUser }) => { // isPremiumUser prop 받기
+const ReminderTimeSettingModal = ({ initialTime, initialRepeatDays, onTimeSelected, onClose, isPremiumUser }) => {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [selectedDays, setSelectedDays] = useState({
     '일': false, '월': false, '화': false, '수': false, '목': false, '금': false, '토': false
   });
-  const [isLoading, setIsLoading] = useState(false); // 로딩 상태 (API 호출은 없지만 일관성 위해)
+  const [isLoading, setIsLoading] = useState(false);
 
 
   // 초기 시간 및 요일 설정
@@ -46,10 +46,14 @@ const ReminderTimeSettingModal = ({ initialTime, initialRepeatDays, onTimeSelect
 
   const handleSave = () => {
     const timeString = format(selectedDate, 'HH:mm');
-    const selectedRepeatDays = Object.keys(selectedDays).filter(day => selectedDays[day]);
+    // 백엔드 Reminder 모델의 days 필드는 Number 배열 (0-6)이므로, 요일 문자열을 숫자로 변환
+    const daysMap = { '일': 0, '월': 1, '화': 2, '수': 3, '목': 4, '금': 5, '토': 6 };
+    const selectedRepeatDaysNumbers = Object.keys(selectedDays)
+      .filter(day => selectedDays[day])
+      .map(day => daysMap[day]);
 
     if (onTimeSelected) {
-      onTimeSelected(timeString, selectedRepeatDays); // 시간과 요일 전달
+      onTimeSelected(timeString, selectedRepeatDaysNumbers); // 시간과 숫자 요일 배열 전달
     }
     onClose();
   };
@@ -64,7 +68,7 @@ const ReminderTimeSettingModal = ({ initialTime, initialRepeatDays, onTimeSelect
       onRequestClose={onClose}
     >
       <View style={styles.overlay}>
-        {isLoading && ( // 로딩 스피너 오버레이
+        {isLoading && (
           <View style={styles.loadingOverlay}>
             <ActivityIndicator size="large" color={Colors.accentApricot} />
           </View>
@@ -72,7 +76,6 @@ const ReminderTimeSettingModal = ({ initialTime, initialRepeatDays, onTimeSelect
         <View style={styles.modalContent}>
           <Text style={styles.modalTitle}>시간 설정</Text>
 
-          {/* 시간 선택 (6번 페이지) */}
           <DateTimePicker
             value={selectedDate}
             mode="time"
@@ -81,7 +84,6 @@ const ReminderTimeSettingModal = ({ initialTime, initialRepeatDays, onTimeSelect
             style={styles.timePicker}
           />
 
-          {/* 요일 반복 설정 */}
           <Text style={styles.sectionTitle}>요일 반복</Text>
           <View style={styles.daysContainer}>
             {daysOfWeek.map(day => (
@@ -128,7 +130,7 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     elevation: 10,
   },
-  loadingOverlay: { // 로딩 스피너 오버레이
+  loadingOverlay: {
     position: 'absolute',
     top: 0,
     left: 0,

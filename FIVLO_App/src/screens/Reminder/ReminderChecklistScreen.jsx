@@ -1,7 +1,7 @@
 // src/screens/Reminder/ReminderChecklistScreen.jsx
 
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert, ScrollView, ActivityIndicator, Modal } from 'react-native'; // ActivityIndicator, Modal 임포트 추가
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert, ScrollView, ActivityIndicator, Modal } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FontAwesome5 } from '@expo/vector-icons';
@@ -17,8 +17,8 @@ import Button from '../../components/common/Button';
 import ReminderCompleteCoinModal from './ReminderCompleteCoinModal';
 
 // API 서비스 임포트
-import { checkReminder } from '../../services/reminder'; // 알림 체크 API 임포트
-import { earnCoin } from '../../services/coinApi'; // 코인 적립 API 임포트
+import { checkReminder } from '../../services/reminder';
+import { earnCoin } from '../../services/coinApi';
 
 const ReminderChecklistScreen = ({ isPremiumUser }) => {
   const navigation = useNavigation();
@@ -36,7 +36,7 @@ const ReminderChecklistScreen = ({ isPremiumUser }) => {
     initialChecklistItems.map(item => ({ text: item, completed: false }))
   );
   const [showCoinModal, setShowCoinModal] = useState(false);
-  const [isLoading, setIsLoading] = useState(false); // 로딩 상태
+  const [isLoading, setIsLoading] = useState(false);
 
   // 모든 항목 완료 여부 확인 및 코인 지급 (API 연동)
   useEffect(() => {
@@ -46,12 +46,11 @@ const ReminderChecklistScreen = ({ isPremiumUser }) => {
         if (isPremiumUser) {
           setIsLoading(true);
           try {
-            // Postman 2-3 코인 적립 API 호출 (1일 1회 로직은 백엔드에서 관리)
-            await earnCoin('reminder_completion', 1, `알림 완료: ${reminderTitle}`);
-            console.log('알림 완료 코인 지급 성공');
-            setShowCoinModal(true); // 코인 모달 띄우기
+            await earnCoin('reminder_complete', 1, `알림 체크리스트 완료: ${reminderTitle}`); // Postman 가이드 reason: 'reminder_complete'
+            console.log('알림 체크리스트 완료 코인 지급 성공');
+            setShowCoinModal(true);
           } catch (error) {
-            console.error('알림 완료 코인 지급 실패:', error.response ? error.response.data : error.message);
+            console.error('알림 체크리스트 코인 지급 실패:', error.response ? error.response.data : error.message);
             Alert.alert('코인 지급 실패', error.response?.data?.message || '코인 지급 중 문제가 발생했습니다.');
           } finally {
             setIsLoading(false);
@@ -66,7 +65,6 @@ const ReminderChecklistScreen = ({ isPremiumUser }) => {
   const toggleChecklistItem = async (index) => {
     setIsLoading(true);
     try {
-      // 백엔드에 알림 체크 상태 업데이트 (Postman 5-5 알림 체크)
       const response = await checkReminder(reminderId); // API 호출
       console.log('알림 체크 성공:', response);
 
@@ -101,7 +99,7 @@ const ReminderChecklistScreen = ({ isPremiumUser }) => {
     <View style={[styles.screenContainer, { paddingTop: insets.top + 20 }]}>
       <Header title={reminderTitle} showBackButton={true} />
 
-      {isLoading && ( // 로딩 스피너 오버레이
+      {isLoading && (
         <View style={styles.loadingOverlay}>
           <ActivityIndicator size="large" color={Colors.accentApricot} />
         </View>
@@ -125,14 +123,13 @@ const ReminderChecklistScreen = ({ isPremiumUser }) => {
         </View>
       </ScrollView>
 
-      {/* 코인 지급 모달 */}
       <Modal
         animationType="fade"
         transparent={true}
         visible={showCoinModal}
         onRequestClose={() => setShowCoinModal(false)}
       >
-        <ReminderCompleteCoinModal onClose={() => setShowCoinModal(false)} isPremiumUser={isPremiumUser} />
+        <ReminderCompleteCoinModal onClose={() => setShowCoinModal(false)} isPremiumUser={isPremiumUser} reminderTitle={reminderTitle} />
       </Modal>
     </View>
   );
@@ -143,7 +140,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: Colors.primaryBeige,
   },
-  loadingOverlay: { // 로딩 스피너 오버레이
+  loadingOverlay: {
     position: 'absolute',
     top: 0,
     left: 0,
