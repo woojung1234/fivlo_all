@@ -29,8 +29,13 @@ const PomodoroGoalSelectionScreen = ({ isPremiumUser }) => {
   const fetchGoals = async () => {
     setIsLoading(true);
     try {
-      const data = await getPomodoroGoals(); // API 호출 (이제 data는 배열)
-      setGoals(data);
+      const data = await getPomodoroGoals();
+      if (Array.isArray(data)) {
+        setGoals(data);
+      } else {
+        console.warn('getPomodoroGoals API에서 배열이 아닌 데이터 수신:', data);
+        setGoals([]);
+      }
     } catch (error) {
       console.error("Failed to fetch pomodoro goals:", error.response ? error.response.data : error.message);
       Alert.alert('오류', '목표 목록을 불러오는데 실패했습니다.');
@@ -50,7 +55,6 @@ const PomodoroGoalSelectionScreen = ({ isPremiumUser }) => {
   // PomodoroGoalCreationScreen에서 새로 추가된 목표를 받아옴
   useEffect(() => {
     if (route.params?.newGoal) {
-      // 새로 추가된 목표를 목록에 반영 (API에서 다시 불러오는 것이 더 안정적이지만, 임시로 추가)
       setGoals(prevGoals => {
         if (!prevGoals.some(goal => goal.id === route.params.newGoal.id)) {
           return [...prevGoals, route.params.newGoal];
@@ -100,7 +104,6 @@ const PomodoroGoalSelectionScreen = ({ isPremiumUser }) => {
           <Text style={styles.noGoalsText}>등록된 집중 목표가 없습니다.</Text>
         )}
 
-        {/* "새로운 목표 작성하기"로 돌아가는 버튼 */}
         <Button 
           title="새로운 목표 작성하기" 
           onPress={() => navigation.navigate('PomodoroGoalCreation')} 
@@ -151,7 +154,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
     shadowRadius: 2,
-    elevation: 2,
+    elevation: 3,
     width: '100%',
   },
   goalColorIndicator: {

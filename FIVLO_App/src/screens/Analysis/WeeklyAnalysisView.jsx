@@ -1,13 +1,14 @@
 // src/screens/Analysis/WeeklyAnalysisView.jsx
 
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, ScrollView, ActivityIndicator, Alert } from 'react-native';
-import { format, startOfWeek, addDays, getWeek, getDay } from 'date-fns';
+import { View, Text, StyleSheet, ScrollView, ActivityIndicator, Alert } from 'react-native';
+import { format, getWeek } from 'date-fns';
 import { ko } from 'date-fns/locale';
 
 // 공통 스타일 및 컴포넌트 임포트
 import { Colors } from '../../styles/color';
 import { FontSizes, FontWeights } from '../../styles/Fonts';
+import CircularProgress from '../../components/common/CircularProgress';
 
 // API 서비스 임포트
 import { getWeeklyAnalysis } from '../../services/analysisApi';
@@ -28,8 +29,9 @@ const WeeklyAnalysisView = ({ date, isPremiumUser }) => {
       setWeeklyData(data);
     } catch (error) {
       console.error("Failed to fetch weekly analysis data:", error.response ? error.response.data : error.message);
+      // API 호출 실패 시 weeklyData를 null로 설정하여 '데이터 없음' 화면이 표시되도록 함
+      setWeeklyData(null); 
       Alert.alert('오류', '주간 분석 데이터를 불러오는데 실패했습니다.');
-      setWeeklyData(null);
     } finally {
       setIsLoading(false);
     }
@@ -51,7 +53,8 @@ const WeeklyAnalysisView = ({ date, isPremiumUser }) => {
     );
   }
 
-  if (!weeklyData) {
+  // [오류 수정] weeklyData가 null이거나, 내부에 stats 객체가 없을 경우를 모두 확인하여 앱 충돌 방지
+  if (!weeklyData || !weeklyData.stats) {
     return (
       <View style={styles.noDataContainer}>
         <Text style={styles.noDataText}>해당 주간에 분석 데이터가 없습니다.</Text>
@@ -59,12 +62,15 @@ const WeeklyAnalysisView = ({ date, isPremiumUser }) => {
     );
   }
 
+  // 데이터가 정상적으로 있을 때만 아래 코드가 실행됨
+  const { stats, weeklyData: dailyConcentration, bestDay } = weeklyData;
+
   return (
     <View style={styles.container}>
       {/* 가장 집중한 요일 (7번) */}
       <Text style={styles.sectionTitle}>가장 집중한 요일</Text>
       <View style={styles.mostConcentratedDayContainer}>
-        <Text style={styles.mostConcentratedDayText}>{weeklyData.bestDay?.day || '-'}</Text> {/* <-- bestDay.day 사용 */}
+        <Text style={styles.mostConcentratedDayText}>{bestDay?.day || '-'}</Text>
       </View>
 
       {/* 요일별 바 차트 (8번) */}
@@ -72,13 +78,13 @@ const WeeklyAnalysisView = ({ date, isPremiumUser }) => {
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.barChartScrollView}>
         <View style={styles.barChartContainer}>
           {daysOfWeekShort.map((dayLabel, index) => {
-            const dayData = weeklyData.dailyConcentration.find(d => d.day === dayLabel) || { minutes: 0 };
-            const heightPercentage = (dayData.minutes / 240) * 100; // 240분(4시간) 기준
+            const dayData = dailyConcentration.find(d => d.day === dayLabel) || { minutes: 0 };
+            const height = dayData.minutes > 0 ? (dayData.minutes / 240) * 100 : 0; // 240분(4시간) 기준
             return (
               <View key={index} style={styles.barColumn}>
                 <View style={[
                   styles.bar,
-                  { height: `${heightPercentage}%` }
+                  { height: `${height > 100 ? 100 : height}%` }
                 ]} />
                 <Text style={styles.barLabel}>{dayLabel}</Text>
               </View>
@@ -89,31 +95,35 @@ const WeeklyAnalysisView = ({ date, isPremiumUser }) => {
 
       {/* 주간 집중도 통계 (9번) */}
       <Text style={styles.sectionTitle}>주간 집중도 통계</Text>
-      <View style={styles.statsContainer}>
+      <View style={styles.statsSummaryContainer}>
         <View style={styles.statItem}>
           <Text style={styles.statLabel}>주간 누적 총 집중 시간</Text>
-          <Text style={styles.statValue}>{weeklyData.totalConcentrationTime || 0}분</Text>
+          <Text style={styles.statValue}>{Math.floor(stats.totalFocusTime / 60)}시간 {stats.totalFocusTime % 60}분</Text>
         </View>
         <View style={styles.statItem}>
           <Text style={styles.statLabel}>주간 평균 집중 시간</Text>
-          <Text style={styles.statValue}>{weeklyData.averageConcentrationTime || 0}분</Text>
+          <Text style={styles.statValue}>{stats.averageFocusTime}분</Text>
         </View>
       </View>
 
       {/* 집중 비율 (10번) */}
       <Text style={styles.sectionTitle}>집중 비율</Text>
-      <View style={styles.statsContainer}>
-        <View style={styles.statItem}>
-          <Text style={styles.statLabel}>집중 시간과 휴식 시간 비율</Text>
-          <Text style={styles.statValue}>{weeklyData.concentrationRatio || 0}%</Text>
-        </View>
-        <View style={styles.statItem}>
-          <Text style={styles.statLabel}>집중 시간</Text>
-          <Text style={styles.statValue}>{weeklyData.focusTime || 0}분</Text>
-        </View>
-        <View style={styles.statItem}>
-          <Text style={styles.statLabel}>휴식 시간</Text>
-          <Text style={styles.statValue}>{weeklyData.breakTime || 0}분</Text>
+      <View style={styles.ratioContainer}>
+        <CircularProgress
+          size={140}
+          strokeWidth={15}
+          progress={stats.concentrationRatio || 0}
+          text={`${stats.concentrationRatio || 0}%`}
+        />
+        <View style={styles.ratioDetails}>
+            <View style={styles.ratioDetailItem}>
+                <Text style={styles.statLabel}>집중 시간</Text>
+                <Text style={styles.statValue}>{Math.floor(stats.totalFocusTime / 60)}시간 {stats.totalFocusTime % 60}분</Text>
+            </View>
+            <View style={styles.ratioDetailItem}>
+                <Text style={styles.statLabel}>휴식 시간</Text>
+                <Text style={styles.statValue}>{Math.floor(stats.totalBreakTime / 60)}시간 {stats.totalBreakTime % 60}분</Text>
+            </View>
         </View>
       </View>
     </View>
@@ -124,6 +134,7 @@ const styles = StyleSheet.create({
   container: {
     width: '100%',
     paddingHorizontal: 0,
+    paddingBottom: 40,
   },
   loadingContainer: {
     flex: 1,
@@ -153,13 +164,11 @@ const styles = StyleSheet.create({
     color: Colors.textDark,
     marginTop: 25,
     marginBottom: 15,
-    width: '100%',
-    textAlign: 'left',
     paddingLeft: 20,
   },
   mostConcentratedDayContainer: {
-    width: '100%',
-    paddingHorizontal: 20,
+    width: '90%',
+    alignSelf: 'center',
     backgroundColor: Colors.textLight,
     borderRadius: 15,
     padding: 20,
@@ -176,20 +185,19 @@ const styles = StyleSheet.create({
     color: Colors.accentApricot,
   },
   barChartScrollView: {
-    width: '100%',
-    height: 200,
-    paddingHorizontal: 10,
+    paddingLeft: 10,
+    paddingRight: 20,
   },
   barChartContainer: {
     flexDirection: 'row',
     alignItems: 'flex-end',
-    height: '100%',
+    height: 200,
     paddingBottom: 10,
-    paddingHorizontal: 5,
+    justifyContent: 'space-around',
+    flexGrow: 1,
   },
   barColumn: {
     width: 35,
-    marginHorizontal: 5,
     height: '100%',
     justifyContent: 'flex-end',
     alignItems: 'center',
@@ -197,17 +205,16 @@ const styles = StyleSheet.create({
   bar: {
     width: '100%',
     backgroundColor: Colors.secondaryBrown,
-    borderRadius: 3,
+    borderRadius: 5,
   },
   barLabel: {
     fontSize: FontSizes.small,
     color: Colors.secondaryBrown,
-    marginTop: 5,
+    marginTop: 8,
   },
-  statsContainer: {
-    width: '100%',
-    paddingHorizontal: 20,
-    marginTop: 20,
+  statsSummaryContainer: {
+    width: '90%',
+    alignSelf: 'center',
     backgroundColor: Colors.textLight,
     borderRadius: 15,
     padding: 20,
@@ -220,7 +227,8 @@ const styles = StyleSheet.create({
   statItem: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 10,
+    alignItems: 'center',
+    paddingVertical: 5,
   },
   statLabel: {
     fontSize: FontSizes.medium,
@@ -228,9 +236,34 @@ const styles = StyleSheet.create({
     fontWeight: FontWeights.medium,
   },
   statValue: {
-    fontSize: FontSizes.medium,
+    fontSize: FontSizes.large,
     color: Colors.secondaryBrown,
     fontWeight: FontWeights.bold,
+  },
+  ratioContainer: {
+    width: '90%',
+    alignSelf: 'center',
+    backgroundColor: Colors.textLight,
+    borderRadius: 15,
+    padding: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+    alignItems: 'center',
+  },
+  ratioDetails: {
+      width: '100%',
+      marginTop: 20,
+  },
+  ratioDetailItem: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingVertical: 10,
+      borderTopWidth: 1,
+      borderTopColor: Colors.primaryBeige,
   },
 });
 

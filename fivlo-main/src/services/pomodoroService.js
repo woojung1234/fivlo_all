@@ -1,3 +1,5 @@
+// backend/src/services/pomodoroService.js
+
 const PomodoroSession = require('../models/PomodoroSession');
 const User = require('../models/User');
 const TimerUtils = require('../utils/timer');
@@ -90,11 +92,15 @@ class PomodoroService {
   /**
    * 세션 완료
    */
-  async completeSession(userId, sessionId) {
+  async completeSession(userId, sessionId, actualDuration = null) {
     try {
       const session = await PomodoroSession.findOne({ _id: sessionId, userId });
       if (!session) {
         throw new Error('세션을 찾을 수 없습니다.');
+      }
+
+      if (actualDuration !== null) {
+        session.actualDuration = actualDuration;
       }
 
       await session.complete();
@@ -106,13 +112,11 @@ class PomodoroService {
         cycleCompleted: false
       };
 
-      // 코인 지급 (집중 세션이고 유료 사용자인 경우)
       if (session.type === 'focus') {
         const coinResult = await this.awardCoins(userId, session);
         result.coinAwarded = coinResult.coinAwarded;
       }
 
-      // 다음 세션 추천
       const nextSessionType = TimerUtils.getNextSessionType(session.type);
       result.nextSession = {
         type: nextSessionType,
@@ -144,7 +148,6 @@ class PomodoroService {
         return null;
       }
 
-      // 세션 상태 검증 및 업데이트
       const stateInfo = TimerUtils.validateSessionState(session);
       
       return {
@@ -167,12 +170,10 @@ class PomodoroService {
         return { coinAwarded: 0, reason: 'not_premium' };
       }
 
-      // 이미 코인을 받은 세션인지 확인
       if (session.coinAwarded) {
         return { coinAwarded: 0, reason: 'already_awarded' };
       }
 
-      // 오늘 이미 코인을 받았는지 확인 (1일 1회 제한)
       const today = new Date();
       today.setHours(0, 0, 0, 0);
       
@@ -188,11 +189,9 @@ class PomodoroService {
         return { coinAwarded: 0, reason: 'daily_limit_reached' };
       }
 
-      // 코인 지급 (집중 세션 완료 시 1코인)
       const coinAmount = 1;
       await user.addCoins(coinAmount, `포모도로 집중 세션 완료: ${session.goal}`);
 
-      // 세션에 코인 지급 기록
       session.coinAwarded = true;
       session.coinAmount = coinAmount;
       await session.save();
@@ -264,7 +263,6 @@ class PomodoroService {
       const targetDate = date ? new Date(date) : new Date();
       let startDate, endDate;
 
-      // 기간별 날짜 계산
       switch (period) {
         case 'daily':
           startDate = new Date(targetDate);
@@ -292,13 +290,11 @@ class PomodoroService {
           throw new Error('올바르지 않은 기간입니다.');
       }
 
-      // 해당 기간의 세션 조회
       const sessions = await PomodoroSession.find({
         userId,
         createdAt: { $gte: startDate, $lte: endDate }
       }).sort({ createdAt: -1 });
 
-      // 통계 계산
       const totalSessions = sessions.length;
       const completedSessions = sessions.filter(s => s.status === 'completed').length;
       const totalFocusTime = sessions.reduce((total, session) => {
@@ -308,7 +304,6 @@ class PomodoroService {
       const averageSessionTime = totalSessions > 0 ? Math.round(totalFocusTime / totalSessions) : 0;
       const completionRate = totalSessions > 0 ? Math.round((completedSessions / totalSessions) * 100) : 0;
 
-      // 목표별 분류
       const goalBreakdown = sessions.reduce((acc, session) => {
         const goal = session.goal || '기타';
         if (!acc[goal]) {
@@ -319,14 +314,12 @@ class PomodoroService {
         return acc;
       }, {});
 
-      // 색상별 분류
       const colorDistribution = sessions.reduce((acc, session) => {
         const color = session.color || '#FF6B6B';
         acc[color] = (acc[color] || 0) + 1;
         return acc;
       }, {});
 
-      // 일별 진행률 (주간/월간만)
       let dailyProgress = [];
       if (period !== 'daily') {
         const days = period === 'weekly' ? 7 : new Date(targetDate.getFullYear(), targetDate.getMonth() + 1, 0).getDate();
@@ -380,7 +373,6 @@ class PomodoroService {
    */
   async calculateBestStreak(userId, referenceDate) {
     try {
-      // 최근 30일간의 완료된 세션들을 날짜별로 그룹화
       const thirtyDaysAgo = new Date(referenceDate);
       thirtyDaysAgo.setDate(referenceDate.getDate() - 30);
 
@@ -392,14 +384,12 @@ class PomodoroService {
 
       if (completedSessions.length === 0) return 0;
 
-      // 날짜별로 그룹화
       const dailyCompletions = {};
       completedSessions.forEach(session => {
         const dateKey = session.createdAt.toISOString().split('T')[0];
         dailyCompletions[dateKey] = true;
       });
 
-      // 연속 일수 계산
       let currentStreak = 0;
       let bestStreak = 0;
       
@@ -421,6 +411,24 @@ class PomodoroService {
     } catch (error) {
       logger.error('연속 완료 기록 계산 실패:', error);
       return 0;
+    }
+  }
+
+  /**
+   * 사용자별 모든 포모도로 세션 조회 (새로 추가)
+   */
+  async getAllUserSessions(userId) {
+    try {
+      logger.info(`모든 포모도로 세션 조회 요청`, { userId });
+      const sessions = await PomodoroSession.find({ userId })
+        .sort({ createdAt: -1 })
+        .select('goal color type duration status createdAt');
+
+      logger.info(`모든 포모도로 세션 조회 완료`, { userId, sessionCount: sessions.length });
+      return sessions;
+    } catch (error) {
+      logger.error(`모든 포मो도로 세션 조회 실패: ${error.message}`, { userId });
+      throw error;
     }
   }
 }

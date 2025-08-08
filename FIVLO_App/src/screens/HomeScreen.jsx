@@ -1,8 +1,8 @@
 // src/screens/HomeScreen.jsx
 
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, Image, Alert, ScrollView, Modal, ActivityIndicator } from 'react-native'; // ActivityIndicator 임포트 추가
-import { useNavigation, useIsFocused } from '@react-navigation/native'; // useIsFocused 임포트 추가
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, Image, Alert, ScrollView, Modal, ActivityIndicator } from 'react-native';
+import { useNavigation, useIsFocused } from '@react-navigation/native';
 import { format, addDays, subDays } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -14,37 +14,38 @@ import { FontSizes, FontWeights } from '../styles/Fonts';
 import CharacterImage from '../components/common/CharacterImage';
 import Button from '../components/common/Button';
 
+// ObooniCustomizationScreen import path corrected based on user's file structure
 import ObooniCustomizationScreen from '../screens/Obooni/ObooniCustomizationScreen';
 
 // API 서비스 임포트
-import { getCoinBalance } from '../services/coinApi'; // coinApi 임포트
-import { getTasksByDate } from '../services/taskApi'; // Task API 임포트 (날짜별 Task 로딩용)
+import { getCoinBalance } from '../services/coinApi';
+import { getTasksByDate, completeTask as completeTaskApi } from '../services/taskApi';
 
 const HomeScreen = ({ isPremiumUser }) => {
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
-  const isFocused = useIsFocused(); // 화면 포커스 여부
+  const isFocused = useIsFocused();
 
   const [currentDate, setCurrentDate] = useState(new Date());
   const [tasks, setTasks] = useState([]);
   const [obooniState, setObooniState] = useState('default');
 
-  const [coins, setCoins] = useState(0); // 초기 코인 0으로 설정
+  const [coins, setCoins] = useState(0);
   const [showCoinGrantModal, setShowCoinGrantModal] = useState(false);
   const [showObooniCustomizationModal, setShowObooniCustomizationModal] = useState(false);
 
-  const [isLoadingTasks, setIsLoadingTasks] = useState(false); // Task 로딩 상태
-  const [isLoadingCoins, setIsLoadingCoins] = useState(false); // 코인 로딩 상태
+  const [isLoadingTasks, setIsLoadingTasks] = useState(false);
+  const [isLoadingCoins, setIsLoadingCoins] = useState(false);
+  const [isCompletingTask, setIsCompletingTask] = useState(false);
 
-  // Task 목록 로드
   const fetchTasks = async (dateToFetch) => {
     setIsLoadingTasks(true);
     try {
       const formattedDate = format(new Date(dateToFetch), 'yyyy-MM-dd');
-      const data = await getTasksByDate(formattedDate); // API 호출
+      const data = await getTasksByDate(formattedDate);
       setTasks(data);
     } catch (error) {
-      console.error("Failed to fetch tasks for date:", dateToFetch, error);
+      console.error("Failed to fetch tasks for date:", dateToFetch, error.response ? error.response.data : error.message);
       Alert.alert('오류', 'Task를 불러오는데 실패했습니다.');
       setTasks([]);
     } finally {
@@ -52,15 +53,14 @@ const HomeScreen = ({ isPremiumUser }) => {
     }
   };
 
-  // 코인 잔액 로드
   const fetchCoinBalance = async () => {
-    if (!isPremiumUser) { // 무료 사용자면 코인 조회 안 함
+    if (!isPremiumUser) {
       setCoins(0);
       return;
     }
     setIsLoadingCoins(true);
     try {
-      const data = await getCoinBalance(); // API 호출
+      const data = await getCoinBalance();
       setCoins(data.balance);
     } catch (error) {
       console.error("Failed to fetch coin balance:", error.response ? error.response.data : error.message);
@@ -71,13 +71,12 @@ const HomeScreen = ({ isPremiumUser }) => {
     }
   };
 
-  // 화면 포커스 시 Task 및 코인 로드
   useEffect(() => {
     if (isFocused) {
       fetchTasks(currentDate);
       fetchCoinBalance();
     }
-  }, [isFocused, currentDate, isPremiumUser]); // isPremiumUser 변경 시에도 코인 로드
+  }, [isFocused, currentDate, isPremiumUser]);
 
   const goToPreviousDay = () => {
     setCurrentDate(subDays(currentDate, 1));
@@ -87,18 +86,40 @@ const HomeScreen = ({ isPremiumUser }) => {
     setCurrentDate(addDays(currentDate, 1));
   };
 
-  const toggleTaskCompletion = (id) => {
-    // TaskDetailModal에서 완료 처리 API 호출하므로, 여기서는 UI만 업데이트
-    setTasks(prevTasks =>
-      prevTasks.map(task =>
-        task.id === id ? { ...task, completed: !task.completed } : task
-      )
-    );
+  const toggleTaskCompletion = async (taskId) => {
+    setIsCompletingTask(true);
+    try {
+      const response = await completeTaskApi(taskId);
+      console.log("Task 완료 처리 성공:", response);
+
+      setTasks(prevTasks =>
+        prevTasks.map(task =>
+          task.id === taskId ? { ...task, isCompleted: response.task.isCompleted, completedAt: response.task.completedAt } : task
+        )
+      );
+
+      fetchCoinBalance();
+
+      if (response.allTasksCompleted && isPremiumUser && response.coinReward && response.coinReward.amount > 0) {
+        setShowCoinGrantModal(true);
+      }
+
+    } catch (error) {
+      console.error("Task 완료 처리 실패:", error.response ? error.response.data : error.message);
+      Alert.alert('오류', error.response?.data?.message || 'Task 완료 처리 중 문제가 발생했습니다.');
+    } finally {
+      setIsCompletingTask(false);
+    }
   };
 
   const goToTaskDetail = (task) => {
-    // TaskDetailModal로 이동 (TaskDetailModal에서 Task 완료 처리 API 호출)
-    navigation.navigate('TaskDetailModal', { selectedDate: format(currentDate, 'yyyy-MM-dd'), tasks: tasks, initialTask: task });
+    navigation.navigate('TaskDetailModal', {
+      selectedDate: format(currentDate, 'yyyy-MM-dd'),
+      initialTask: task,
+      isPremiumUser: isPremiumUser,
+      onTaskUpdate: () => fetchTasks(currentDate),
+      onTaskDelete: () => fetchTasks(currentDate),
+    });
   };
 
   const handleGoToTaskCalendar = () => {
@@ -113,16 +134,18 @@ const HomeScreen = ({ isPremiumUser }) => {
     <TouchableOpacity
       style={styles.taskItem}
       onPress={() => goToTaskDetail(item)}
+      disabled={isCompletingTask}
     >
       <TouchableOpacity
         style={styles.checkbox}
         onPress={() => toggleTaskCompletion(item.id)}
+        disabled={isCompletingTask}
       >
-        <Text style={item.completed ? styles.checkboxChecked : styles.checkboxUnchecked}>
-          {item.completed ? '✔' : '☐'}
+        <Text style={item.isCompleted ? styles.checkboxChecked : styles.checkboxUnchecked}>
+          {item.isCompleted ? '✔' : '☐'}
         </Text>
       </TouchableOpacity>
-      <Text style={[styles.taskText, item.completed && styles.taskTextCompleted]}>
+      <Text style={[styles.taskText, item.isCompleted && styles.taskTextCompleted]}>
         {item.title}
       </Text>
     </TouchableOpacity>
@@ -132,13 +155,13 @@ const HomeScreen = ({ isPremiumUser }) => {
     <View style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollViewContentContainer}>
         <View style={styles.dateNavigationContainer}>
-          <TouchableOpacity onPress={goToPreviousDay} style={styles.dateNavButton}>
+          <TouchableOpacity onPress={goToPreviousDay} style={styles.dateNavButton} disabled={isLoadingTasks || isCompletingTask}>
             <Text style={styles.dateNavButtonText}>{'<'}</Text>
           </TouchableOpacity>
           <Text style={styles.currentDateText}>
             {format(currentDate, 'yyyy년 MM월 dd일 EEEE', { locale: ko })}
           </Text>
-          <TouchableOpacity onPress={goToNextDay} style={styles.dateNavButton}>
+          <TouchableOpacity onPress={goToNextDay} style={styles.dateNavButton} disabled={isLoadingTasks || isCompletingTask}>
             <Text style={styles.dateNavButtonText}>{'>'}</Text>
           </TouchableOpacity>
         </View>
@@ -154,13 +177,13 @@ const HomeScreen = ({ isPremiumUser }) => {
           </View>
         )}
 
-        <TouchableOpacity onPress={handleObooniPress}>
+        <TouchableOpacity onPress={handleObooniPress} disabled={isLoadingTasks || isLoadingCoins || isCompletingTask}>
           <CharacterImage state={obooniState} style={styles.obooniCharacter} />
         </TouchableOpacity>
 
         <View style={styles.taskListContainer}>
           <Text style={styles.taskListTitle}>오늘의 할 일</Text>
-          {isLoadingTasks ? (
+          {isLoadingTasks || isCompletingTask ? (
             <ActivityIndicator size="large" color={Colors.secondaryBrown} style={styles.loadingIndicator} />
           ) : tasks.length > 0 ? (
             <FlatList
@@ -172,7 +195,7 @@ const HomeScreen = ({ isPremiumUser }) => {
               contentContainerStyle={styles.flatListContentContainer}
             />
           ) : (
-            <TouchableOpacity onPress={handleGoToTaskCalendar} style={styles.noTaskContainer}>
+            <TouchableOpacity onPress={handleGoToTaskCalendar} style={styles.noTaskContainer} disabled={isLoadingTasks || isCompletingTask}>
               <Text style={styles.noTaskText}>오늘의 일정을 정해주세요</Text>
               <FontAwesome name="plus-circle" size={30} color={Colors.secondaryBrown} style={styles.plusButton} />
             </TouchableOpacity>
@@ -180,15 +203,22 @@ const HomeScreen = ({ isPremiumUser }) => {
         </View>
 
         {showCoinGrantModal && (
-          <View style={styles.coinModalOverlay}>
-            <View style={styles.coinModalContent}>
-              <CharacterImage style={styles.modalObooni} />
-              <Text style={styles.modalMessage}>
-                오분이가 뿌듯해합니다{"\n"}오늘도 화이팅 !
-              </Text>
-              <Button title="확인" onPress={() => setShowCoinGrantModal(false)} style={styles.modalButton} />
+          <Modal
+            animationType="fade"
+            transparent={true}
+            visible={showCoinGrantModal}
+            onRequestClose={() => setShowCoinGrantModal(false)}
+          >
+            <View style={styles.coinModalOverlay}>
+              <View style={styles.coinModalContent}>
+                <CharacterImage style={styles.modalObooni} />
+                <Text style={styles.modalMessage}>
+                  오분이가 뿌듯해합니다{"\n"}오늘도 화이팅 !
+                </Text>
+                <Button title="확인" onPress={() => setShowCoinGrantModal(false)} style={styles.modalButton} />
+              </View>
             </View>
-          </View>
+          </Modal>
         )}
       </ScrollView>
     </View>

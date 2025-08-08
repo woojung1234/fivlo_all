@@ -14,9 +14,10 @@ import Header from '../../components/common/Header';
 import Button from '../../components/common/Button';
 
 // API 서비스 임포트
-import { createTimeAttackSession } from '../../services/timeAttackApi'; // API 임포트
+import { createTimeAttackSession } from '../../services/timeAttackApi';
+import { createAIGoal } from '../../services/aiApi'; // AI API 임포트
 
-const TimeAttackAISubdivisionScreen = ({ isPremiumUser }) => { // isPremiumUser prop 받기
+const TimeAttackAISubdivisionScreen = ({ isPremiumUser }) => {
   const navigation = useNavigation();
   const route = useRoute();
   const insets = useSafeAreaInsets();
@@ -31,30 +32,65 @@ const TimeAttackAISubdivisionScreen = ({ isPremiumUser }) => { // isPremiumUser 
   const [editedTaskText, setEditedTaskText] = useState('');
   const [editedTaskTime, setEditedTaskTime] = useState('');
 
-  // AI 세분화 로직 시뮬레이션 (초기 로딩)
+  // AI 세분화 로직 호출
   useEffect(() => {
-    // 실제로는 백엔드 AI API (Postman 7-1 AI 목표 세분화 생성) 호출
-    // const aiResponse = await createAIGoal(selectedGoal, totalMinutes);
-    // setSubdividedTasks(aiResponse.steps); // 예시
-    setTimeout(() => {
-      const generatedTasks = [
-        { id: 't1', name: '머리 감기', duration: 5, unit: '분', editable: true }, // 'name'과 'duration'으로 변경
-        { id: 't2', name: '샤워하기', duration: 10, unit: '분', editable: true },
-        { id: 't3', name: '옷 입기', duration: 5, unit: '분', editable: true },
-        { id: 't4', name: '아침 식사', duration: 15, unit: '분', editable: true },
-        { id: 't5', name: '쓰레기 버리기', duration: 3, unit: '분', editable: true },
-        { id: 't6', name: '출근 준비', duration: 10, unit: '분', editable: true },
-        { id: 't7', name: '준비 완료', duration: 0, unit: '분', editable: false },
-      ];
-      setSubdividedTasks(generatedTasks);
-      setIsLoadingAI(false);
-    }, 2000);
-  }, []);
+    const fetchAIGoalBreakdown = async () => {
+      setIsLoadingAI(true);
+      try {
+        // Postman 7-1 AI 목표 세분화 생성 API 호출
+        // totalMinutes는 분 단위로 백엔드에 전달 (백엔드에서 초로 변환)
+        const aiResponse = await createAIGoal(
+          selectedGoal,
+          `${totalMinutes}분`, // duration 필드에 '분' 단위로 전달
+          true, // hasDuration
+          new Date().toISOString().split('T')[0], // startDate
+          null // endDate (단기 목표이므로 null)
+        );
+        console.log('AI 목표 세분화 응답:', aiResponse);
+
+        // AI 응답의 tasks 필드 파싱
+        if (aiResponse && aiResponse.tasks && Array.isArray(aiResponse.tasks)) {
+          const formattedTasks = aiResponse.tasks.map((task, index) => ({
+            id: task.id || `ai_task_${index}_${Date.now()}`, // 백엔드에서 ID가 없다면 임시 ID 생성
+            name: task.title, // 백엔드 tasks의 'title' 필드 사용
+            duration: parseInt(task.estimatedTime) || 0, // 'estimatedTime'을 분 단위 숫자로 파싱
+            unit: '분',
+            editable: true,
+            order: index,
+          }));
+          setSubdividedTasks(formattedTasks);
+        } else {
+          // AI 응답이 예상과 다를 경우 기본 단계 사용 (폴백)
+          const fallbackTasks = [
+            { id: 'fb1', name: '준비하기', duration: Math.floor(totalMinutes * 0.1), unit: '분', editable: true },
+            { id: 'fb2', name: selectedGoal, duration: Math.floor(totalMinutes * 0.8), unit: '분', editable: true },
+            { id: 'fb3', name: '마무리하기', duration: Math.floor(totalMinutes * 0.1), unit: '분', editable: true },
+          ];
+          setSubdividedTasks(fallbackTasks);
+          Alert.alert('알림', 'AI 세분화에 실패하여 기본 단계를 사용합니다.');
+        }
+
+      } catch (error) {
+        console.error("AI 목표 세분화 실패:", error.response ? error.response.data : error.message);
+        Alert.alert('오류', error.response?.data?.message || 'AI 세분화 중 문제가 발생했습니다. 기본 단계를 사용합니다.');
+        // 오류 발생 시 기본 단계 사용
+        const fallbackTasks = [
+          { id: 'fb1', name: '준비하기', duration: Math.floor(totalMinutes * 0.1), unit: '분', editable: true },
+          { id: 'fb2', name: selectedGoal, duration: Math.floor(totalMinutes * 0.8), unit: '분', editable: true },
+          { id: 'fb3', name: '마무리하기', duration: Math.floor(totalMinutes * 0.1), unit: '분', editable: true },
+        ];
+        setSubdividedTasks(fallbackTasks);
+      } finally {
+        setIsLoadingAI(false);
+      }
+    };
+    fetchAIGoalBreakdown();
+  }, [selectedGoal, totalMinutes]); // selectedGoal 또는 totalMinutes 변경 시 다시 호출
 
   const handleEditTask = (task) => {
     setCurrentEditingTask(task);
-    setEditedTaskText(task.name); // 'text' 대신 'name' 사용
-    setEditedTaskTime(task.duration.toString()); // 'time' 대신 'duration' 사용
+    setEditedTaskText(task.name);
+    setEditedTaskTime(task.duration.toString());
     setIsEditingTask(true);
   };
 
@@ -85,20 +121,21 @@ const TimeAttackAISubdivisionScreen = ({ isPremiumUser }) => { // isPremiumUser 
 
   // "타임어택 시작" 버튼 클릭 (API 연동)
   const handleStartAttack = async () => {
-    setIsLoadingAI(true); // 로딩 다시 시작
+    setIsLoadingAI(true);
     try {
       // API 명세에 맞춰 steps 데이터 준비
       const stepsForApi = subdividedTasks.map(task => ({
         name: task.name,
-        duration: task.duration * 60, // 분을 초로 변환
+        minutes: task.duration, // 백엔드 steps의 'minutes' 필드에 'duration' 전달 (분 단위)
         description: task.name, // description은 name과 동일하게 설정 (임시)
       }));
 
-      const response = await createTimeAttackSession(selectedGoal, totalMinutes * 60, stepsForApi); // API 호출
+      // createTimeAttackSession API 호출
+      const response = await createTimeAttackSession(selectedGoal, totalMinutes, stepsForApi); // totalMinutes는 분 단위로 전달
       console.log('타임어택 세션 생성 성공:', response);
 
       Alert.alert('타임어택 시작', '세분화된 목표로 타임어택을 시작합니다!');
-      navigation.navigate('TimeAttackInProgress', { selectedGoal, subdividedTasks: subdividedTasks, sessionId: response.id }); // 세션 ID 전달
+      navigation.navigate('TimeAttackInProgress', { selectedGoal, subdividedTasks: formattedTasks, sessionId: response.id }); // 세션 ID 전달
     } catch (error) {
       console.error('타임어택 세션 생성 실패:', error.response ? error.response.data : error.message);
       Alert.alert('오류', error.response?.data?.message || '타임어택 시작 중 문제가 발생했습니다.');
@@ -109,11 +146,11 @@ const TimeAttackAISubdivisionScreen = ({ isPremiumUser }) => { // isPremiumUser 
 
   const renderSubdividedTaskItem = ({ item }) => (
     <View style={styles.taskItem}>
-      <Text style={styles.taskText}>{item.name}</Text> {/* 'text' 대신 'name' 사용 */}
+      <Text style={styles.taskText}>{item.name}</Text>
       <View style={styles.taskTimeContainer}>
         {item.editable ? (
           <TouchableOpacity onPress={() => handleEditTask(item)} style={styles.editTimeButton}>
-            <Text style={styles.editTimeButtonText}>{item.duration} {item.unit}</Text> {/* 'time' 대신 'duration' 사용 */}
+            <Text style={styles.editTimeButtonText}>{item.duration} {item.unit}</Text>
           </TouchableOpacity>
         ) : (
           <Text style={styles.staticTimeText}>{item.duration} {item.unit}</Text>
@@ -133,13 +170,13 @@ const TimeAttackAISubdivisionScreen = ({ isPremiumUser }) => { // isPremiumUser 
         {isLoadingAI && (
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color={Colors.secondaryBrown} />
-            <Text style={styles.loadingText}>오분이가 당신을 위한{"\n"}40분 타임어택을 만들어요!</Text>
+            <Text style={styles.loadingText}>오분이가 당신을 위한{"\n"}{totalMinutes}분 타임어택을 만들어요!</Text> {/* totalMinutes 반영 */}
           </View>
         )}
 
         {!isLoadingAI && (
           <>
-            <Text style={styles.sectionTitle}>오분이가 당신을 위한{"\n"}40분 타임어택을 만들었어요!</Text>
+            <Text style={styles.sectionTitle}>오분이가 당신을 위한{"\n"}{totalMinutes}분 타임어택을 만들었어요!</Text> {/* totalMinutes 반영 */}
             <FlatList
               data={subdividedTasks}
               renderItem={renderSubdividedTaskItem}

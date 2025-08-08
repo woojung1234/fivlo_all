@@ -1,7 +1,7 @@
 // src/screens/TimeAttack/TimeAttackInProgressScreen.jsx
 
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert, Animated, Easing, Image, ActivityIndicator } from 'react-native'; // ActivityIndicator 임포트 추가
+import { View, Text, StyleSheet, TouchableOpacity, Alert, Animated, Easing, Image, ActivityIndicator } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { FontAwesome5 } from '@expo/vector-icons';
@@ -15,24 +15,23 @@ import Header from '../../components/common/Header';
 import CharacterImage from '../../components/common/CharacterImage';
 
 // API 서비스 임포트
-import { updateTimeAttackSessionStatus, completeTimeAttackSession } from '../../services/timeAttackApi'; // API 임포트
+import { updateTimeAttackSessionStatus, completeTimeAttackSession } from '../../services/timeAttackApi';
 
 const AUTO_NEXT_THRESHOLD = 3000; // 자동 다음 단계 전환 대기 시간 (3초)
 
-const TimeAttackInProgressScreen = ({ isPremiumUser }) => { // isPremiumUser prop 받기
+const TimeAttackInProgressScreen = ({ isPremiumUser }) => {
   const navigation = useNavigation();
   const route = useRoute();
   const insets = useSafeAreaInsets();
 
-  // selectedGoal, subdividedTasks, sessionId를 route.params에서 가져옴
   const { selectedGoal, subdividedTasks, sessionId } = route.params;
 
   const [currentTaskIndex, setCurrentTaskIndex] = useState(0);
   const [timeLeft, setTimeLeft] = useState(0); // 현재 단계의 남은 시간
   const [isRunning, setIsRunning] = useState(true); // 타이머 작동 여부
-  const [nextButtonPressTime, setNextButtonPressTime] = useState(0); // 다음 버튼 눌린 시간
+  const [nextButtonPressTime, setNextButtonPressTime] = useState(0);
 
-  const [isLoading, setIsLoading] = useState(false); // 로딩 상태
+  const [isLoading, setIsLoading] = useState(false);
 
   const timerRef = useRef(null);
   const nextTimerRef = useRef(null);
@@ -47,10 +46,10 @@ const TimeAttackInProgressScreen = ({ isPremiumUser }) => { // isPremiumUser pro
   useEffect(() => {
     if (currentTask) {
       setTimeLeft(currentTask.duration * 60); // 분을 초로 변환
-      setIsRunning(true);
+      setIsRunning(true); // 새 태스크 시작 시 타이머 자동 시작
     } else {
       // 모든 태스크 완료
-      navigation.replace('TimeAttackComplete', { selectedGoal, isPremiumUser }); // isPremiumUser 전달
+      navigation.replace('TimeAttackComplete', { selectedGoal, isPremiumUser });
       return;
     }
   }, [currentTaskIndex, subdividedTasks]);
@@ -62,7 +61,7 @@ const TimeAttackInProgressScreen = ({ isPremiumUser }) => { // isPremiumUser pro
       }, 1000);
     } else if (timeLeft === 0 && isRunning) {
       clearInterval(timerRef.current);
-      handleTaskComplete(); // 현재 태스크 시간 완료
+      handleTaskComplete();
     } else {
       clearInterval(timerRef.current);
     }
@@ -74,11 +73,12 @@ const TimeAttackInProgressScreen = ({ isPremiumUser }) => { // isPremiumUser pro
   useEffect(() => {
     if (totalTaskDuration > 0) {
       const elapsedSeconds = totalTaskDuration - timeLeft;
-      const progressPercentage = (elapsedSeconds / totalTaskDuration) * 100;
+      // 분침 회전 (총 시간 대비 현재 진행된 시간의 비율을 360도로 매핑)
+      // 0초일 때 0도, totalTaskDuration일 때 360도 회전
+      const angle = (elapsedSeconds / totalTaskDuration) * 360;
+      minuteHandRotation.setValue(angle);
 
-      const minuteAngle = (elapsedSeconds % 60) * 6;
-      minuteHandRotation.setValue(minuteAngle);
-
+      // 진행도 바 채우기
       progressFill.setValue(progressPercentage);
     }
   }, [timeLeft, totalTaskDuration]);
@@ -122,7 +122,7 @@ const TimeAttackInProgressScreen = ({ isPremiumUser }) => { // isPremiumUser pro
       // await updateTimeAttackSessionStep(sessionId, currentTask.id, 'completed'); 
 
       setIsRunning(false);
-      const message = `${currentTask.name}을(를) 종료했어요!`; // 'text' 대신 'name' 사용
+      const message = `${currentTask.name}을(를) 종료했어요!`;
       speakText(message);
 
       Alert.alert('단계 완료', message, [
@@ -143,8 +143,8 @@ const TimeAttackInProgressScreen = ({ isPremiumUser }) => { // isPremiumUser pro
       setCurrentTaskIndex(prev => prev + 1);
     } else {
       // 모든 태스크 완료 시 최종 완료 API 호출
-      completeTimeAttackSession(sessionId); // API 호출
-      navigation.replace('TimeAttackComplete', { selectedGoal, isPremiumUser }); // isPremiumUser 전달
+      completeTimeAttackSession(sessionId);
+      navigation.replace('TimeAttackComplete', { selectedGoal, isPremiumUser });
     }
   };
 
@@ -159,7 +159,7 @@ const TimeAttackInProgressScreen = ({ isPremiumUser }) => { // isPremiumUser pro
   const handleNextButtonPressOut = () => {
     clearTimeout(nextTimerRef.current);
     if (Date.now() - nextButtonPressTime < AUTO_NEXT_THRESHOLD) {
-      Alert.alert('다음 단계로', `${currentTask.name}을(를) 완료했나요?`, [ // 'text' 대신 'name' 사용
+      Alert.alert('다음 단계로', `${currentTask.name}을(를) 완료했나요?`, [
         { text: '취소', style: 'cancel' },
         { text: '완료', onPress: handleNextTask },
       ]);
@@ -184,7 +184,7 @@ const TimeAttackInProgressScreen = ({ isPremiumUser }) => { // isPremiumUser pro
     <View style={[styles.screenContainer, { paddingTop: insets.top + 20 }]}>
       <Header title="타임어택 기능" showBackButton={true} />
 
-      {isLoading && ( // 로딩 스피너 오버레이
+      {isLoading && (
         <View style={styles.loadingOverlay}>
           <ActivityIndicator size="large" color={Colors.accentApricot} />
         </View>
@@ -192,7 +192,7 @@ const TimeAttackInProgressScreen = ({ isPremiumUser }) => { // isPremiumUser pro
 
       <View style={styles.contentContainer}>
         <Text style={styles.goalText}>{selectedGoal}</Text>
-        <Text style={styles.currentTaskText}>{currentTask ? currentTask.name : '준비 완료'}</Text> {/* 'text' 대신 'name' 사용 */}
+        <Text style={styles.currentTaskText}>{currentTask ? currentTask.name : '준비 완료'}</Text>
 
         {/* 타이머 시각화 (시계 모양) */}
         <View style={styles.timerDisplayContainer}>
@@ -230,7 +230,7 @@ const TimeAttackInProgressScreen = ({ isPremiumUser }) => { // isPremiumUser pro
           style={styles.nextButton}
           onPressIn={handleNextButtonPressIn}
           onPressOut={handleNextButtonPressOut}
-          disabled={isLoading} // 로딩 중 비활성화
+          disabled={isLoading}
         >
           <Text style={styles.nextButtonText}>다음 단계로</Text>
         </TouchableOpacity>
@@ -244,7 +244,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: Colors.primaryBeige,
   },
-  loadingOverlay: { // 로딩 스피너 오버레이
+  loadingOverlay: {
     position: 'absolute',
     top: 0,
     left: 0,

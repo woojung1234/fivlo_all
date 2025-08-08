@@ -9,7 +9,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { GlobalStyles } from '../../styles/GlobalStyles';
 import { Colors } from '../../styles/color';
 import { FontSizes, FontWeights } from '../../styles/Fonts';
-import Header from '../../components/common/Header';
+import Header from '../../components/common/Header'; // <-- Header 임포트 확인
 import CharacterImage from '../../components/common/CharacterImage';
 
 // API 서비스 임포트
@@ -26,15 +26,24 @@ const PomodoroScreen = ({ isPremiumUser }) => {
   // 목표 목록 로드
   const fetchGoals = async () => {
     setIsLoading(true);
+    console.log('포모도로 목표 목록 불러오기 시작...');
     try {
-      const data = await getPomodoroGoals(); // API 호출 (이제 data는 { id, title, color } 객체 배열)
-      setGoals(data);
+      const data = await getPomodoroGoals();
+      console.log('포모도로 목표 목록 API 응답:', data);
+
+      if (Array.isArray(data)) {
+        setGoals(data);
+      } else {
+        console.warn('getPomodoroGoals API에서 배열이 아닌 데이터 수신:', data);
+        setGoals([]);
+      }
     } catch (error) {
-      console.error("Failed to fetch pomodoro goals:", error.response ? error.response.data : error.message);
+      console.error('포모도로 목표 목록 불러오기 실패:', error.response ? error.response.data : error.message);
       Alert.alert('오류', '목표 목록을 불러오는데 실패했습니다.');
       setGoals([]);
     } finally {
       setIsLoading(false);
+      console.log('포모도로 목표 목록 불러오기 완료.');
     }
   };
 
@@ -54,7 +63,7 @@ const PomodoroScreen = ({ isPremiumUser }) => {
   // 기존 목표 선택 핸들러 (목표 목록에서 선택 시)
   const handleSelectGoal = (goal) => {
     Alert.alert('포모도로 시작', `"${goal.title}" 목표로 포모도로를 시작합니다.`);
-    navigation.navigate('PomodoroTimer', { selectedGoal: goal }); // goal 객체 전체 전달
+    navigation.navigate('PomodoroTimer', { selectedGoal: goal });
   };
 
   const renderGoalItem = ({ item }) => (
@@ -64,7 +73,7 @@ const PomodoroScreen = ({ isPremiumUser }) => {
       disabled={isLoading}
     >
       <View style={[styles.goalColorIndicator, { backgroundColor: item.color }]} />
-      <Text style={styles.goalText}>{item.title}</Text> {/* title 필드 사용 */}
+      <Text style={styles.goalText}>{item.title}</Text>
     </TouchableOpacity>
   );
 
@@ -94,7 +103,7 @@ const PomodoroScreen = ({ isPremiumUser }) => {
             <Text style={styles.orText}>또는</Text>
           </>
         ) : (
-          <Text style={styles.noGoalsText}>아직 설정된 포모도로 목표가 없습니다.</Text>
+          !isLoading && <Text style={styles.noGoalsText}>아직 설정된 포모도로 목표가 없습니다.</Text>
         )}
 
         <TouchableOpacity style={styles.createGoalButton} onPress={handleCreateGoal} disabled={isLoading}>
@@ -155,7 +164,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
     shadowRadius: 2,
-    elevation: 2,
+    elevation: 3,
   },
   goalColorIndicator: {
     width: 20,

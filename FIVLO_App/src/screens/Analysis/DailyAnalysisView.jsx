@@ -7,7 +7,7 @@ import { format } from 'date-fns';
 // 공통 스타일 및 컴포넌트 임포트
 import { Colors } from '../../styles/color';
 import { FontSizes, FontWeights } from '../../styles/Fonts';
-
+import CircularProgress from '../../components/common/CircularProgress';
 // API 서비스 임포트
 import { getDailyAnalysis } from '../../services/analysisApi';
 
@@ -36,19 +36,18 @@ const DailyAnalysisView = ({ date, isPremiumUser }) => {
     fetchData(date);
   }, [date]);
 
-  // 시간대별 바 차트 데이터 생성 (3번)
-  const hourlyChartData = Array.from({ length: 24 }, (_, i) => {
-    const hour = i.toString().padStart(2, '0');
-    const activitiesInHour = dailyData?.hourlyData?.[hour] || {};
-    const totalMinutesInHour = Object.values(activitiesInHour).reduce((sum, min) => sum + min, 0);
-    return { hour, totalMinutes: totalMinutesInHour, activities: activitiesInHour };
+const hourlyChartData = Array.from({ length: 24 }, (_, i) => {
+    const hour = i.toString();
+    const activitiesInHour = hourlyData?.data?.[hour] || {};
+    const totalMinutesInHour = Object.values(activitiesInHour).reduce((sum, { minutes }) => sum + minutes, 0);
+    return { hour: i.toString().padStart(2, '0'), totalMinutes: totalMinutesInHour, activities: activitiesInHour };
   });
 
   const renderActivityItem = ({ item }) => (
     <View style={styles.activityItem}>
       <View style={[styles.activityColorIndicator, { backgroundColor: item.color || Colors.secondaryBrown }]} />
-      <Text style={styles.activityName}>{item.name}</Text>
-      <Text style={styles.activityTime}>{item.minutes}분</Text> {/* <-- item.time 대신 item.minutes 사용 */}
+      <Text style={styles.activityName}>{item.goal}</Text>
+      <Text style={styles.activityTime}>{item.totalTime}분</Text>
     </View>
   );
 
@@ -61,13 +60,16 @@ const DailyAnalysisView = ({ date, isPremiumUser }) => {
     );
   }
 
-  if (!dailyData) {
+  if (!dailyData || !dailyData.stats || dailyData.stats.totalFocusTime === 0) {
     return (
       <View style={styles.noDataContainer}>
-        <Text style={styles.noDataText}>해당 날짜에 분석 데이터가 없습니다.</Text>
+        <Text style={styles.noDataText}>포모도로를 설정해주세요!</Text>
       </View>
     );
   }
+
+   const { stats, hourlyData, activities } = dailyData;
+
 
   return (
     <View style={styles.container}>
@@ -123,11 +125,16 @@ const DailyAnalysisView = ({ date, isPremiumUser }) => {
       <View style={styles.statsContainer}>
         <View style={styles.statItem}>
           <Text style={styles.statLabel}>총 집중 시간</Text>
-          <Text style={styles.statValue}>{dailyData.totalConcentrationTime || 0}분</Text>
+          <Text style={styles.statValue}>{stats.totalFocusTime}분</Text>
         </View>
-        <View style={styles.statItem}>
-          <Text style={styles.statLabel}>집중 비율</Text>
-          <Text style={styles.statValue}>{dailyData.concentrationRatio || 0}%</Text>
+        <View style={styles.statItemProgress}>
+           <Text style={styles.statLabel}>집중 비율</Text>
+           <CircularProgress
+              size={120}
+              strokeWidth={12}
+              progress={stats.concentrationRatio}
+              text={`${stats.concentrationRatio}%`}
+            />
         </View>
       </View>
     </View>
@@ -155,6 +162,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     paddingVertical: 50,
+    backgroundColor: Colors.textLight,
+    borderRadius: 15,
+    margin: 20,
+    minHeight: 200,
   },
   noDataText: {
     fontSize: FontSizes.medium,
@@ -257,7 +268,12 @@ const styles = StyleSheet.create({
   statItem: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 10,
+    alignItems: 'center', // [추가]
+    marginBottom: 15, // [수정]
+  },
+  statItemProgress: {
+    alignItems: 'center',
+    marginTop: 10,
   },
   statLabel: {
     fontSize: FontSizes.medium,

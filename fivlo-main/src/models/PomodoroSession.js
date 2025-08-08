@@ -1,3 +1,5 @@
+// backend/src/models/PomodoroSession.js
+
 const mongoose = require('mongoose');
 
 const pomodoroSessionSchema = new mongoose.Schema({
@@ -188,8 +190,8 @@ pomodoroSessionSchema.pre('save', function(next) {
     this.completedAt = new Date();
     this.status = 'completed';
     
-    // 실제 소요 시간 계산
-    if (this.startTime) {
+    // 실제 소요 시간 계산 (actualDuration이 이미 설정되어 있다면 덮어쓰지 않음)
+    if (this.startTime && (this.actualDuration === undefined || this.actualDuration === 0)) {
       this.actualDuration = this.elapsedTime;
     }
   }
@@ -306,9 +308,18 @@ pomodoroSessionSchema.methods.pause = function() {
 };
 
 // 인스턴스 메서드: 세션 완료
-pomodoroSessionSchema.methods.complete = function() {
+// actualDuration을 파라미터로 받을 수 있도록 수정
+pomodoroSessionSchema.methods.complete = function(actualDurationFromService = null) { // <-- 파라미터 추가
   this.isCompleted = true;
   this.endTime = new Date();
+  
+  // 서비스에서 actualDuration이 넘어오면 그것을 사용
+  if (actualDurationFromService !== null) {
+    this.actualDuration = actualDurationFromService;
+  } else if (this.startTime) {
+    // 서비스에서 넘어오지 않고 startTime이 있다면 elapsedTime으로 계산
+    this.actualDuration = this.elapsedTime;
+  }
   
   return this.save();
 };
